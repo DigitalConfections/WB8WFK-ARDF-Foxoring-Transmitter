@@ -24,14 +24,14 @@
 #ifndef DEFS_H
 #define DEFS_H
 
-#include <arduino.h>
+#include <Arduino.h>
 
 /* #define F_CPU 16000000UL / * gets declared in makefile * / */
 
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "P1.1"
+#define SW_REVISION "0.1"
 
 //#define TRANQUILIZE_WATCHDOG
 
