@@ -930,12 +930,6 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 
 		switch(msg_id)
 		{
-			case MESSAGE_WIFI:
-			{
-				/* Your code goes here */
-			}
-			break;
-
 			case MESSAGE_RESET:
 			{
 #ifdef USE_WATCHDOG
@@ -1216,4 +1210,3 @@ void saveAllEEPROM()
 
 	eeprom_update_byte((uint8_t*)&ee_pattern_text[i], 0);
 }
-
