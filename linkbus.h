@@ -41,10 +41,8 @@
 
 #define LINKBUS_MIN_TX_INTERVAL_MS 100
 
-//#define FOSC 8000000    /* Clock Speed */
 #define FOSC 16000000    /* Clock Speed */
-#define BAUD 9600
-//#define BAUD 19200
+#define BAUD 57600
 #define MYUBRR(b) (FOSC / 16 / (b) - 1)
 
 typedef enum
@@ -112,13 +110,12 @@ typedef enum
 	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',        /* Sets amateur radio callsign text */
 	MESSAGE_SET_PATTERN = 'P' * 10 + 'A',           /* Sets unique transmit pattern */
 	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D', /* Sets id and pattern code speeds */
-	MESSAGE_TIME_INTERVAL = 'T',					/* Sets on-air, off-air, delay, and ID time intervals */
 	MESSAGE_ESP_COMM = 'E' * 100 + 'S' * 10 + 'P',  /* Communications with ESP8266 controller */
 	MESSAGE_GO = 'G' * 10 + 'O',					/* Start transmitting now without delay */
 
 	/* UTILITY MESSAGES */
 	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',		/* Processor reset */
-	MESSAGE_WIFI = 'W' * 10 + 'I',					/* Enable/disable WiFi */
+	MESSAGE_VERSION = 'V' * 100 + 'E' * 10 + + 'R',	/* S/W version number */
 
 	INVALID_MESSAGE = UINT16_MAX					/* This value must never overlap a valid message ID */
 } LBMessageID;

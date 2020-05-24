@@ -40,16 +40,6 @@
 
 /*******************************************************/
 
-/******************************************************
- * Include only the necessary hardware support */
-//   #define INCLUDE_SI5351_SUPPORT // Silicon Labs Programmable Clock
-//   #define INCLUDE_DS3231_SUPPORT // Maxim RTC
-//   #define INCLUDE_TRANSMITTER_SUPPORT
-//   #define INCLUDE_DAC081C085_SUPPORT
-//   #define ENABLE_PIN_CHANGE_INTERRUPT_0
-//   #define ENABLE_PIN_CHANGE_INTERRUPT_1
-//   #define ENABLE_PIN_CHANGE_INTERRUPT_2
-
 #ifndef uint16_t_defined
 #define uint16_t_defined
 typedef unsigned int uint16_t;

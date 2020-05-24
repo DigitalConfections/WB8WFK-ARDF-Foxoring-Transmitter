@@ -60,13 +60,15 @@ void saveAllEEPROM(void);
 void transmitString(char msg[], int speed);
 void word_space(int speed);
 int codeBits(char alphaNum);
-void (* resetFunc) (void) = 0;  /*declare reset function @ address 0 */
+
+#ifndef USE_WATCHDOG
+    void (* resetFunc) (void) = 0;  /*declare reset function @ address 0 */
+#endif
 
 void setup()
 {
 	initializeEEPROMVars(); /* Initialize variables stored in EEPROM */
-	linkbus_init(57600);    /* Start the Link Bus serial comms */
-/*  Serial.begin(57600);  // debug - this might not work with the Link Bus enabled or vice versa */
+	linkbus_init(BAUD);    /* Start the Link Bus serial comms */
 	linkbus_send_text((char*)"\n\nStored Data:\n");
 	sprintf(g_tempStr, "  ID: %s\n", g_messages_text[STATION_ID]);
 	linkbus_send_text(g_tempStr);
@@ -76,13 +78,14 @@ void setup()
 	linkbus_send_text(g_tempStr);
 	sprintf(g_tempStr, "  LED: %s\n", g_enable_LEDs == TRUE ? "ON" : "OFF");
 	linkbus_send_text(g_tempStr);
-/* put your setup code here, to run once:
- * set pins as outputs and inputs */
+
+    /* set pins as outputs */
 	pinMode(13, OUTPUT);    /* The nano amber LED
 	                         * This led blinks when off cycle and
 	                         * blinks with code when on cycle. */
 	pinMode(2, OUTPUT);     /* This pin is used to control the KEY line to the transmittter
 	                         * only active on cycle. */
+    
 /* set the pins that are inputs */
 	pinMode(3, INPUT);      /* This pin is used as the sync line
 	                         * NOTE: The original albq PIC controllers used the CPU reset line as the
@@ -94,10 +97,6 @@ void setup()
 	pinMode(4, INPUT);      /* fox switch LSB */
 	pinMode(5, INPUT);      /* fox switch middle bit */
 	pinMode(6, INPUT);      /* fox switch MSB */
-
-
-/* set up interrupts and serial */
-
 
 /*
  * read the dip switches and compute the desired fox number
@@ -589,7 +588,7 @@ void loop()
 
 /*
  * A R D F cycles MO and DEMO
- * */
+ */
 	while(1)                        /* Start of the standard ARDF and demo mode loop */
 	{
 		/*get ready for first pass
@@ -940,13 +939,14 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			case MESSAGE_RESET:
 			{
 #ifdef USE_WATCHDOG
-					wdt_init(WD_FORCE_RESET);
-					while(1)
-					{
-						;
-					}
-#endif  /* USE_WATCHDOG */
-				resetFunc();                                                                                                                                 /*call reset */
+                wdt_init(WD_FORCE_RESET);
+                while(1)
+                {
+                    ;
+                }
+#else
+				resetFunc(); /*call reset */
+#endif // USE_WATCHDOG
 			}
 			break;
 
@@ -1023,7 +1023,15 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			{
 				uint8_t flag = EEPROM_INITIALIZED_FLAG + 1;
 				eeprom_write_byte(&ee_interface_eeprom_initialization_flag, flag);
+#ifdef USE_WATCHDOG
+                wdt_init(WD_FORCE_RESET);
+                while(1)
+                {
+                    ;
+                }
+#else
 				resetFunc();    /*call reset */
+#endif // USE_WATCHDOG
 			}
 			break;
 
@@ -1074,12 +1082,6 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			}
 			break;
 
-			case MESSAGE_TIME_INTERVAL:
-			{
-				/* Your code goes here */
-			}
-			break;
-
 			case MESSAGE_SET_PATTERN:
 			{
 				if(lb_buff->fields[FIELD1][0])
@@ -1089,9 +1091,11 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			}
 			break;
 
-			case MESSAGE_BAND:
+			case MESSAGE_VERSION:
 			{
-				/* Your code goes here */
+				sprintf(g_tempStr, "SW Ver:%u\n", SW_REVISION);
+				linkbus_send_text(g_tempStr);
+				send_ack = FALSE;
 			}
 			break;
 
