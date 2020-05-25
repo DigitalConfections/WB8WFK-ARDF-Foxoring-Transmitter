@@ -237,6 +237,7 @@ void setup()
  ************************************************************************/
 ISR(USART_RX_vect)
 {
+	static char textBuff[LINKBUS_MAX_MSG_FIELD_LENGTH];
 	static LinkbusRxBuffer* buff = NULL;
 	static uint8_t charIndex = 0;
 	static uint8_t field_index = 0;
@@ -255,87 +256,234 @@ ISR(USART_RX_vect)
 	if(buff)
 	{
 		rx_char = toupper(rx_char);
-		SMCR = 0x00;                                /* exit power-down mode */
-
-		if((rx_char == '$') || (rx_char == '!'))    /* start of new message = $ */
-		{
-			charIndex = 0;
-			buff->type = (rx_char == '!') ? LINKBUS_MSG_REPLY : LINKBUS_MSG_COMMAND;
-			field_len = 0;
-			msg_ID = LINKBUS_MSG_UNKNOWN;
-			receiving_msg = TRUE;
-
-			/* Empty the field buffers */
-			for(field_index = 0; field_index < LINKBUS_MAX_MSG_NUMBER_OF_FIELDS; field_index++)
+//		SMCR = 0x00; // exit power-down mode
+		
+//		if(g_terminal_mode)
+//		{
+			static uint8_t ignoreCount = 0;
+			
+			if(ignoreCount)
 			{
-				buff->fields[field_index][0] = '\0';
+				rx_char = '\0';
+				ignoreCount--;
+			}
+			else if(rx_char == 0x1B)    /* ESC sequence start */
+			{
+				rx_char = '\0';
+
+				if(charIndex < LINKBUS_MAX_MSG_FIELD_LENGTH)
+				{
+					rx_char = textBuff[charIndex];
+				}
+
+				ignoreCount = 2;                            /* throw out the next two characters */
 			}
 
-			field_index = 0;
-		}
-		else if(receiving_msg)
-		{
-			if((rx_char == ',') || (rx_char == ';') || (rx_char == '?'))    /* new field = ,; end of message = ; */
+			if(rx_char == 0x0D)                             /* Handle carriage return */
 			{
-				/* if(field_index == 0) // message ID received */
-				if(field_index > 0)
+				if(receiving_msg)
 				{
-					buff->fields[field_index - 1][field_len] = 0;
-				}
-
-				field_index++;
-				field_len = 0;
-
-				if(rx_char == ';')
-				{
-					if(charIndex >= LINKBUS_MIN_MSG_LENGTH)
+					if(charIndex > 0)
 					{
-						buff->id = (LBMessageID)msg_ID;
-					}
-					receiving_msg = FALSE;
-				}
-				else if(rx_char == '?')
-				{
-					buff->type = LINKBUS_MSG_QUERY;
-					if(charIndex > LINKBUS_MIN_MSG_LENGTH)
-					{
-						buff->id = (LBMessageID)msg_ID;
-					}
-					receiving_msg = FALSE;
-				}
+						buff->type = LINKBUS_MSG_QUERY;
+						buff->id = msg_ID;
 
-				if(!receiving_msg)
-				{
-					buff = 0;
-				}
-			}
-			else
-			{
-				if(field_index == 0)    /* message ID received */
-				{
-					msg_ID = msg_ID * 10 + rx_char;
+						if(field_index > 0) /* terminate the last field */
+						{
+							buff->fields[field_index - 1][field_len] = 0;
+						}
+
+						textBuff[charIndex] = '\0'; /* terminate last-message buffer */
+					}
+
+					lb_send_NewLine();
 				}
 				else
 				{
-					buff->fields[field_index - 1][field_len++] = rx_char;
+					buff->id = INVALID_MESSAGE; /* print help message */
+				}
+
+				charIndex = 0;
+				field_len = 0;
+				msg_ID = LINKBUS_MSG_UNKNOWN;
+
+				field_index = 0;
+				buff = NULL;
+
+				receiving_msg = FALSE;
+			}
+			else if(rx_char)
+			{
+				textBuff[charIndex] = rx_char;  /* hold the characters for re-use */
+
+				if(charIndex)
+				{
+					if(rx_char == 0x7F)         /* Handle backspace */
+					{
+						charIndex--;
+						if(field_index == 0)
+						{
+							msg_ID -= textBuff[charIndex];
+							msg_ID /= 10;
+						}
+						else if(field_len)
+						{
+							field_len--;
+						}
+						else
+						{
+							buff->fields[field_index][0] = '\0';
+							field_index--;
+						}
+					}
+					else
+					{
+						if(rx_char == ' ')
+						{
+							if(textBuff[charIndex - 1] == ' ')
+							{
+								rx_char = '\0';
+							}
+							else
+							{
+								/* if(field_index == 0) // message ID received */
+								if(field_index > 0)
+								{
+									buff->fields[field_index - 1][field_len] = 0;
+								}
+
+								field_index++;
+								field_len = 0;
+							}
+						}
+						else
+						{
+							if(field_index == 0)    /* message ID received */
+							{
+								msg_ID = msg_ID * 10 + rx_char;
+							}
+							else
+							{
+								buff->fields[field_index - 1][field_len++] = rx_char;
+							}
+						}
+
+						charIndex = MIN(charIndex+1, LINKBUS_MAX_MSG_FIELD_LENGTH);
+					}
+				}
+				else
+				{
+					if((rx_char == 0x7F) || (rx_char == ' '))   /* Handle backspace and Space */
+					{
+						rx_char = '\0';
+					}
+					else                                        /* start of new message */
+					{
+						uint8_t i;
+						field_index = 0;
+						msg_ID = 0;
+
+						msg_ID = msg_ID * 10 + rx_char;
+
+						/* Empty the field buffers */
+						for(i = 0; i < LINKBUS_MAX_MSG_NUMBER_OF_FIELDS; i++)
+						{
+							buff->fields[i][0] = '\0';
+						}
+
+						receiving_msg = TRUE;
+						charIndex = MIN(charIndex+1, LINKBUS_MAX_MSG_FIELD_LENGTH);
+					}
+				}
+
+				if(rx_char)
+				{
+					lb_echo_char(rx_char);
 				}
 			}
-		}
-		else if(rx_char == 0x0D)    /* Handle carriage return */
-		{
-			buff->id = (LBMessageID)LINKBUS_MSG_UNKNOWN;
-			charIndex = LINKBUS_MAX_MSG_LENGTH;
-			field_len = 0;
-			msg_ID = LINKBUS_MSG_UNKNOWN;
-			field_index = 0;
-			buff = NULL;
-		}
-
-		if(++charIndex >= LINKBUS_MAX_MSG_LENGTH)
-		{
-			receiving_msg = FALSE;
-			charIndex = 0;
-		}
+//		}
+//		else
+//		{
+//			if((rx_char == '$') || (rx_char == '!'))    /* start of new message = $ */
+//			{
+//				charIndex = 0;
+//				buff->type = (rx_char == '!') ? LINKBUS_MSG_REPLY : LINKBUS_MSG_COMMAND;
+//				field_len = 0;
+//				msg_ID = LINKBUS_MSG_UNKNOWN;
+//				receiving_msg = TRUE;
+//
+//				/* Empty the field buffers */
+//				for(field_index = 0; field_index < LINKBUS_MAX_MSG_NUMBER_OF_FIELDS; field_index++)
+//				{
+//					buff->fields[field_index][0] = '\0';
+//				}
+//
+//				field_index = 0;
+//			}
+//			else if(receiving_msg)
+//			{
+//				if((rx_char == ',') || (rx_char == ';') || (rx_char == '?'))    /* new field = ,; end of message = ; */
+//				{
+//					/* if(field_index == 0) // message ID received */
+//					if(field_index > 0)
+//					{
+//						buff->fields[field_index - 1][field_len] = 0;
+//					}
+//
+//					field_index++;
+//					field_len = 0;
+//
+//					if(rx_char == ';')
+//					{
+//						if(charIndex > LINKBUS_MIN_MSG_LENGTH)
+//						{
+//							buff->id = msg_ID;
+//						}
+//						receiving_msg = FALSE;
+//					}
+//					else if(rx_char == '?')
+//					{
+//						buff->type = LINKBUS_MSG_QUERY;
+//						if(charIndex >= LINKBUS_MIN_MSG_LENGTH)
+//						{
+//							buff->id = msg_ID;
+//						}
+//						receiving_msg = FALSE;
+//					}
+//
+//					if(!receiving_msg)
+//					{
+//						buff = 0;
+//					}
+//				}
+//				else
+//				{
+//					if(field_index == 0)    /* message ID received */
+//					{
+//						msg_ID = msg_ID * 10 + rx_char;
+//					}
+//					else
+//					{
+//						buff->fields[field_index - 1][field_len++] = rx_char;
+//					}
+//				}
+//			}
+//			else if(rx_char == 0x0D)    /* Handle carriage return */
+//			{
+//				buff->id = LINKBUS_MSG_UNKNOWN;
+//				charIndex = LINKBUS_MAX_MSG_LENGTH;
+//				field_len = 0;
+//				msg_ID = LINKBUS_MSG_UNKNOWN;
+//				field_index = 0;
+//				buff = NULL;
+//			}
+//
+//			if(++charIndex >= LINKBUS_MAX_MSG_LENGTH)
+//			{
+//				receiving_msg = FALSE;
+//				charIndex = 0;
+//			}
+//		}
 	}
 }
 

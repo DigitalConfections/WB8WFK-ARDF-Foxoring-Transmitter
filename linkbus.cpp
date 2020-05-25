@@ -33,6 +33,9 @@
 
 /* Global Variables */
 static volatile BOOL g_bus_disabled = TRUE;
+static const char crlf[] = "\n";
+static char lineTerm[8] = "\n";
+static const char textPrompt[] = "TX> ";
 
 static char g_tempMsgBuff[LINKBUS_MAX_MSG_LENGTH];
 
@@ -332,4 +335,45 @@ void lb_broadcast_num(uint16_t data, char* str)
   }
 
   if(g_tempMsgBuff[0]) linkbus_send_text(g_tempMsgBuff);
+}
+
+/***********************************************************************************
+ *  Support for creating and sending various Terminal Mode Linkbus messages is provided below.
+ ************************************************************************************/
+
+void lb_send_NewPrompt(void)
+{
+	linkbus_send_text((char*)crlf);
+}
+
+void lb_send_NewLine(void)
+{
+	linkbus_send_text((char*)crlf);
+}
+
+void linkbus_setLineTerm(char* term)
+{
+	sprintf(lineTerm, term);
+}
+
+void lb_echo_char(uint8_t c)
+{
+	g_tempMsgBuff[0] = c;
+	g_tempMsgBuff[1] = '\0';
+	linkbus_send_text(g_tempMsgBuff);
+}
+
+BOOL lb_send_string(char* str)
+{
+	if(str == NULL) return TRUE;
+	if(strlen(str) > LINKBUS_MAX_MSG_LENGTH) return TRUE;
+	strncpy(g_tempMsgBuff, str, LINKBUS_MAX_MSG_LENGTH);
+	linkbus_send_text(g_tempMsgBuff);
+	return FALSE;
+}
+
+void lb_send_value(uint16_t value, char* label)
+{
+	sprintf(g_tempMsgBuff, "> %s=%d%s", label, value, lineTerm);
+	linkbus_send_text(g_tempMsgBuff);
 }

@@ -239,4 +239,28 @@ void lb_broadcast_num(uint16_t data, char* str);
  */
 void lb_send_Help(void);
 
+/**
+ */
+void lb_send_NewPrompt(void);
+
+/**
+ */
+void lb_send_NewLine(void);
+
+/**
+ */
+void linkbus_setLineTerm(char* term);
+
+/**
+ */
+void lb_echo_char(uint8_t c);
+
+/**
+ */
+BOOL lb_send_string(char* str);
+
+/**
+ */
+void lb_send_value(uint16_t value, char* label);
+
 #endif  /* LINKBUS_H_ */

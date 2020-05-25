@@ -286,47 +286,6 @@ typedef enum
 /******************************************************
  * UI Hardware-related definitions */
 
-typedef enum lcdRow
-{
-	ROW0,
-	ROW1,
-	NUMBER_OF_LCD_ROWS
-} LcdRowType;
-
-typedef enum lcdColumn
-{
-	COL0,
-	COL1,
-	COL2,
-	COL3,
-	COL4,
-	COL5,
-	COL6,
-	COL7,
-	COL8,
-	COL9,
-	COL10,
-	COL11,
-	COL12,
-	COL13,
-	COL14,
-	COL15,
-	COL16,
-	COL17,
-	COL18,
-	COL19,
-	NUMBER_OF_LCD_COLS,
-	INVALID_LCD_COLUMN
-} LcdColType;
-
-typedef enum
-{
-	BUTTON1_COLUMN = COL0,
-	BUTTON2_COLUMN = COL5,
-	BUTTON3_COLUMN = COL10,
-	BUTTON4_COLUMN = COL15
-} ButtonColumn;
-
 typedef enum
 {
 	FrequencyFormat,
@@ -336,38 +295,6 @@ typedef enum
 
 #define DISPLAY_WIDTH_STRING_SIZE (NUMBER_OF_LCD_COLS + 1)
 
-typedef uint8_t BackLightSettingType;
-#define BL_OFF 0xFF
-#define BL_LOW 0xCF
-#define BL_MED 0x8F
-#define BL_HIGH 0x00
-
-typedef uint8_t ContrastType;
-
-typedef enum volumeSetting
-{
-	VOL_ZERO = 0,
-	VOL_10,
-	VOL_20,
-	VOL_30,
-	VOL_40,
-	VOL_50,
-	VOL_60,
-	VOL_70,
-	VOL_80,
-	VOL_90,
-	VOL_100,
-	DECREMENT_VOL,
-	INCREMENT_VOL,
-	VOL_NOT_SPECIFIED
-} VolumeSetting;
-
-typedef enum volumeType
-{
-	TONE_VOLUME,
-	MAIN_VOLUME
-} VolumeType;
-
 typedef enum batteryType
 {
 	BATTERY_9V,
@@ -375,15 +302,6 @@ typedef enum batteryType
 	BATTERY_EXTERNAL,
 	BATTERY_UNKNOWN
 } BatteryType;
-
-typedef enum buttons
-{
-	BUTTON1,
-	BUTTON2,
-	BUTTON3,
-	BUTTON4,
-	NUMBER_OF_BUTTONS
-} ButtonType;
 
 typedef enum
 {
