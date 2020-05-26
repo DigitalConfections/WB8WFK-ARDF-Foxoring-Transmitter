@@ -35,7 +35,8 @@
 #define LINKBUS_MAX_MSG_FIELD_LENGTH 21
 #define LINKBUS_MAX_MSG_NUMBER_OF_FIELDS 3
 #define LINKBUS_NUMBER_OF_RX_MSG_BUFFERS 2
-#define LINKBUS_NUMBER_OF_TX_MSG_BUFFERS 8
+#define LINKBUS_MAX_TX_MSG_LENGTH 40
+#define LINKBUS_NUMBER_OF_TX_MSG_BUFFERS 10
 
 #define LINKBUS_POWERUP_DELAY_SECONDS 6
 
@@ -97,21 +98,10 @@ typedef enum
 	MESSAGE_FACTORY_RESET = 'F' * 100 + 'A' * 10 + 'C', /* Sets EEPROM back to defaults */
 	MESSAGE_OVERRIDE_DIP = 'D' *100 + 'I' * 10 + 'P', /* Override DIP switch settings using this value */
 	MESSAGE_LEDS = 'L' * 100 + 'E' * 10 + 'D',  /* Turn on or off LEDs - accepts 1 or 0 or ON or OFF */
-	MESSAGE_CLOCK = 'T' * 100 + 'I' * 10 + 'M',		/* Sets/reads the real-time clock */
-	MESSAGE_STARTFINISH = 'S' * 10 + 'F',			/* Sets the start and finish times */
-	MESSAGE_BAT = 'B' * 100 + 'A' * 10 + 'T',       /* Battery charge data */
+	MESSAGE_SYNC_ENABLE = 'S' * 100 + 'Y' * 10 + 'N',  /* Enable or disable transmitter syncing */
 	MESSAGE_TEMP = 'T' * 100 + 'E' * 10 + 'M',      /* Temperature  data */
-	MESSAGE_PERM = 'P' * 100 + 'R' * 10 + 'M',		/* Saves most settings to EEPROM "perm" */
-	MESSAGE_TX_POWER = 'P' * 100 + 'O' * 10 + 'W',	/* Sets transmit power level */
-	MESSAGE_TX_MOD = 'M' * 100 + 'O' * 10 + 'D',    /* Sets 2m modulation format to AM or CW */
-#ifdef DONOTUSE
-	MESSAGE_DRIVE_LEVEL = 'D' * 100 + 'R' * 10 + 'I', /*  Adjust 2m drive level */
-#endif // DONOTUSE
 	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',        /* Sets amateur radio callsign text */
-	MESSAGE_SET_PATTERN = 'P' * 10 + 'A',           /* Sets unique transmit pattern */
-	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D', /* Sets id and pattern code speeds */
-	MESSAGE_ESP_COMM = 'E' * 100 + 'S' * 10 + 'P',  /* Communications with ESP8266 controller */
-	MESSAGE_GO = 'G' * 10 + 'O',					/* Start transmitting now without delay */
+	MESSAGE_GO = 'G' * 10 + 'O',					/* Synchronizes clock */
 
 	/* UTILITY MESSAGES */
 	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',		/* Processor reset */
@@ -119,14 +109,6 @@ typedef enum
 
 	INVALID_MESSAGE = UINT16_MAX					/* This value must never overlap a valid message ID */
 } LBMessageID;
-
-#define MESSAGE_CLOCK_LABEL "TIM"
-#define MESSAGE_ESP_LABEL "ESP"
-#define MESSAGE_ERRORCODE_LABEL "EC"
-#define MESSAGE_STATUSCODE_LABEL "SC"
-#define MESSAGE_BAND_LABEL "BND"
-#define MESSAGE_TX_POWER_LABEL "POW"
-#define MESSAGE_ACK "!ACK;"
 
 typedef enum
 {
@@ -161,7 +143,7 @@ typedef enum
 	TRANSMITTER_ID = 3
 } DeviceID;
 
-typedef char LinkbusTxBuffer[LINKBUS_MAX_MSG_LENGTH];
+typedef char LinkbusTxBuffer[LINKBUS_MAX_TX_MSG_LENGTH];
 
 typedef struct
 {
@@ -262,5 +244,9 @@ BOOL lb_send_string(char* str);
 /**
  */
 void lb_send_value(uint16_t value, char* label);
+
+/**
+ */
+void lb_send_Help(void);
 
 #endif  /* LINKBUS_H_ */

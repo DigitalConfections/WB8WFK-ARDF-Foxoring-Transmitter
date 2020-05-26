@@ -36,7 +36,7 @@
 //#define TRANQUILIZE_WATCHDOG
 
 #define PRODUCT_NAME_SHORT "ARDF Tx"
-#define PRODUCT_NAME_LONG "ARDF Dual-Band Transmitter"
+#define PRODUCT_NAME_LONG "WB8WFK ARDF Transmitter"
 
 /*******************************************************/
 
@@ -64,6 +64,14 @@ typedef unsigned char uint8_t;
    #define AM_DAC DAC081C_I2C_SLAVE_ADDR_A1
    #define BIAS_DAC DAC081C_I2C_SLAVE_ADDR_A2
 #endif
+
+typedef enum {
+//	TX1 = 0xA4,
+//	TX2 = 0xA3,
+//	TX3 = 0xA2,
+//	TX4 = 0xA1,
+	TX5 = 0xA0
+	} Tx_t;
 
 /*******************************************************/
 /* Error Codes                                                                   */
@@ -157,7 +165,7 @@ typedef uint16_t BatteryLevel;  /* in milliVolts */
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xAC
+#define EEPROM_INITIALIZED_FLAG 0xAD
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
@@ -175,6 +183,7 @@ typedef uint16_t BatteryLevel;  /* in milliVolts */
 #define EEPROM_CLOCK_CALIBRATION_DEFAULT 15629
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
 #define EEPROM_ENABLE_LEDS_DEFAULT 1
+#define EEPROM_ENABLE_SYNC_DEFAULT 1
 
 #define EEPROM_SI5351_CALIBRATION_DEFAULT 0x00
 #define EEPROM_CLK0_OUT_DEFAULT 133000000
