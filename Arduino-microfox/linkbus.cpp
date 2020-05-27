@@ -45,6 +45,7 @@ static const char textHelp[][LINKBUS_MAX_TX_MSG_LENGTH] = { "\nCommands:\n",
 															"  LED - LED on/off\n",
 															"  RST - Reset\n",
 															"  SYN - Sync on/off\n",
+															"  TEM - Temperature\n",
 															"  VER - S/W version\n" };
 
 static char g_tempMsgBuff[LINKBUS_MAX_MSG_LENGTH];
