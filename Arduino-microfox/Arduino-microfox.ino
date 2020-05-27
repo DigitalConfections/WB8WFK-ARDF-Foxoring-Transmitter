@@ -10,13 +10,13 @@
 
 #define MAX_PATTERN_TEXT_LENGTH 20
 
-volatile int seconds    = 0;    /* Init timer to first second. Set in ISR checked by main. */
-volatile int minutes    = 1;    /* Init timer to cycle 1. */
-volatile int g_fox      = 0;    /* Sets Fox number not set by ISR. Set in startup and checked in main. */
-volatile int active     = 0;    /* Disable active. set and clear in ISR. Checked in main. */
-volatile int EOC_KEY    = 0;    /* Used for end of cycle flag. Set in main is cleared in ISR and checked in main. */
-volatile int demo       = 0;    /* used to put us in ARDF cycle mode sw = 6. */
-volatile int foxO       = 0;    /* used to put us in fox o mode switch 7. */
+volatile int g_seconds          = 0;    /* Init timer to first second. Set in ISR checked by main. */
+volatile int g_minutes          = 1;    /* Init timer to cycle 1. */
+volatile int g_fox              = 0;    /* Sets Fox number not set by ISR. Set in startup and checked in main. */
+volatile int g_active           = 0;    /* Disable active. set and clear in ISR. Checked in main. */
+volatile int EOC_KEY            = 0;    /* Used for end of cycle flag. Set in main is cleared in ISR and checked in main. */
+volatile int g_demo             = 0;    /* used to put us in ARDF cycle mode sw = 6. */
+volatile int g_foxO             = 0;    /* used to put us in fox o mode switch 7. */
 
 /***********************************************************************
  * Global Variables & String Constants
@@ -86,24 +86,24 @@ void setup()
 	linkbus_send_text(g_tempStr);
 	lb_send_NewPrompt();
 
-    /* set pins as outputs */
-	pinMode(13, OUTPUT);    /* The nano amber LED
-	                         * This led blinks when off cycle and
-	                         * blinks with code when on cycle. */
-	pinMode(2, OUTPUT);     /* This pin is used to control the KEY line to the transmittter
-	                         * only active on cycle. */
-    
+	/* set pins as outputs */
+	pinMode(PIN_NANO_LED, OUTPUT);  /* The nano amber LED
+	                                 * This led blinks when off cycle and
+	                                 * blinks with code when on cycle. */
+	pinMode(PIN_NANO_KEY, OUTPUT);  /* This pin is used to control the KEY line to the transmittter
+	                                 * only active on cycle. */
+
 /* set the pins that are inputs */
-	pinMode(3, INPUT);      /* This pin is used as the sync line
-	                         * NOTE: The original albq PIC controllers used the CPU reset line as the
-	                         * sync line. We had issues with transmitters getting out of sync during transport.
-	                         * later investigation found that ESD events during transport was resetting the
-	                         * PIC. This code will read this I/O line for sync and after finding that the I/O line
-	                         * has switched to the high state it never reads it again until a power cycle.
-	                         * The Arduino reset line does not go off board. ESD event caused out of sync issue fixed. */
-	pinMode(4, INPUT);      /* fox switch LSB */
-	pinMode(5, INPUT);      /* fox switch middle bit */
-	pinMode(6, INPUT);      /* fox switch MSB */
+	pinMode(PIN_NANO_SYNC, INPUT);  /* This pin is used as the sync line
+	                                 * NOTE: The original albq PIC controllers used the CPU reset line as the
+	                                 * sync line. We had issues with transmitters getting out of sync during transport.
+	                                 * later investigation found that ESD events during transport was resetting the
+	                                 * PIC. This code will read this I/O line for sync and after finding that the I/O line
+	                                 * has switched to the high state it never reads it again until a power cycle.
+	                                 * The Arduino reset line does not go off board. ESD event caused out of sync issue fixed. */
+	pinMode(PIN_NANO_DIP_0, INPUT); /* fox switch LSB */
+	pinMode(PIN_NANO_DIP_1, INPUT); /* fox switch middle bit */
+	pinMode(PIN_NANO_DIP_2, INPUT); /* fox switch MSB */
 
 /*
  * read the dip switches and compute the desired fox number
@@ -114,34 +114,34 @@ void setup()
 	}
 	else
 	{
-		if(digitalRead(4) == HIGH ) /*Lsb */
+		if(digitalRead(PIN_NANO_DIP_0) == HIGH )    /*Lsb */
 		{
 			g_fox++;
 		}
-		if(digitalRead(5) == HIGH ) /* middle bit */
+		if(digitalRead(PIN_NANO_DIP_1) == HIGH )    /* middle bit */
 		{
 			g_fox += 2;
 		}
-		if(digitalRead(6) == HIGH ) /* MSB */
+		if(digitalRead(PIN_NANO_DIP_2) == HIGH )    /* MSB */
 		{
 			g_fox += 4;
 		}
 	}
 
-	if(g_fox == 6 )         /* trap for invalid > 6 fox */
+	if(g_fox == 6 )                     /* trap for invalid > 6 fox */
 	{
-		demo = 1;           /* force to demo mode */
-		g_fox = 1;          /* start with MOE */
+		g_demo = 1;                     /* force to demo mode */
+		g_fox = 1;                      /* start with MOE */
 	}
 
-	if(g_fox == 7 )         /* put us in fox O mode */
+	if(g_fox == 7 )                     /* put us in fox O mode */
 	{
-		foxO = 1;           /* force to fox O mode */
+		g_foxO = 1;                     /* force to fox O mode */
 	}
 
-	cli();                  /*stop interrupts for setup */
+	cli();                              /*stop interrupts for setup */
 
-	digitalWrite(13, LOW);  /* Turn off led sync switch is now open */
+	digitalWrite(PIN_NANO_LED, LOW);    /* Turn off led sync switch is now open */
 
 /*
  * get ready set go
@@ -213,16 +213,15 @@ void setup()
 		linkbus_send_text((char*)"Type \"GO\"\n");
 		lb_send_NewPrompt();
 
-		while(( digitalRead(3) == LOW) && !g_start_override)
+		while(( digitalRead(PIN_NANO_SYNC) == LOW) && !g_start_override)
 		{
 			if(g_enable_LEDs)
 			{
-				digitalWrite(13, HIGH); /* arduino nano LED
-				                         * turn on led to show sync switch is closed */
+				digitalWrite(PIN_NANO_LED, HIGH);   /* arduino nano LED turn on led to show sync switch is closed */
 			}
 
-			minutes = 1;                /* Reset the clock start of cycle addresses different power up times*/
-			seconds = 0;                /* Reset the clock addresses  different power up times*/
+			g_minutes = 1;                          /* Reset the clock start of cycle addresses different power up times*/
+			g_seconds = 0;                          /* Reset the clock addresses  different power up times*/
 			handleLinkBusMsgs();
 		}
 	}
@@ -275,30 +274,8 @@ ISR(USART_RX_vect)
 	if(buff)
 	{
 		rx_char = toupper(rx_char);
-/*		SMCR = 0x00; // exit power-down mode */
 
-/*		if(g_terminal_mode)
- *		{ */
-		static uint8_t ignoreCount = 0;
-
-		if(ignoreCount)
-		{
-			rx_char = '\0';
-			ignoreCount--;
-		}
-		else if(rx_char == 0x1B)    /* ESC sequence start */
-		{
-			rx_char = '\0';
-
-			if(charIndex < LINKBUS_MAX_MSG_FIELD_LENGTH)
-			{
-				rx_char = textBuff[charIndex];
-			}
-
-			ignoreCount = 2;    /* throw out the next two characters */
-		}
-
-		if(rx_char == 0x0D)     /* Handle carriage return */
+		if(rx_char == 0x0D) /* Handle carriage return */
 		{
 			if(receiving_msg)
 			{
@@ -365,7 +342,6 @@ ISR(USART_RX_vect)
 						}
 						else
 						{
-							/* if(field_index == 0) // message ID received */
 							if(field_index > 0)
 							{
 								buff->fields[field_index - 1][field_len] = 0;
@@ -470,35 +446,34 @@ ISR(USART_UDRE_vect)
 ISR(TIMER1_COMPA_vect)                  /*timer1 interrupt 1Hz */
 
 {/*This is the ARDF core timer */
-	++seconds;                          /* one second event - update seconds */
+	++g_seconds;                        /* one second event - update seconds */
 
 /*
  * Code to make home transmitter (MO) cycle work
  * this lets transmitter go off for a second and then restart
  * by override of the timer in the MO mode.
- * */
-	if((g_fox == 0) && (minutes > 0))   /* check for override for home transmitter mode
-	                                     * all other ARDF transmitters use 1,2,3,4,and 5 */
+ */
+	if((g_fox == 0) && (g_minutes > 0)) /* check for override for home transmitter mode all other ARDF transmitters use 1,2,3,4,and 5 */
 	{
-		minutes = 0;                    /* override timer */
+		g_minutes = 0;                  /* override timer */
 	}
 
-/* normal fox mode (MOx cycle)
- * check seconds and update minutes */
-	if(seconds == 59)
+/* normal fox mode (MOx cycle) check seconds and update minutes */
+	if(g_seconds == 59)
 	{
-		++minutes;      /* make minutes adjustment */
+		++g_minutes;    /* make minutes adjustment */
 		EOC_KEY = 0;    /* flag to kick out of end cycle long tone keydown */
 	}
-	if(seconds == 60)
-	{
 
-		seconds = 0;    /* set seconds back to 0 */
-	}
-	/* adjust timer for cycle */
-	if(minutes == 6)    /* adjust counter for ARDF cycle */
+	if(g_seconds >= 60)
 	{
-		minutes = 1;    /* set for first transmitter */
+		g_seconds = 0;  /* set seconds back to 0 */
+	}
+
+	/* adjust timer for cycle */
+	if(g_minutes == 6)  /* adjust counter for ARDF cycle */
+	{
+		g_minutes = 1;  /* set for first transmitter */
 	}
 
 /******************************************************
@@ -507,13 +482,13 @@ ISR(TIMER1_COMPA_vect)                  /*timer1 interrupt 1Hz */
  *
  ****************************************************** */
 
-	if(g_fox == minutes)    /* test for active ARDF cycle */
+	if(g_fox == g_minutes)  /* test for active ARDF cycle */
 	{
-		active = 1;         /* active is a flag that the main state machine uses */
+		g_active = 1;       /* active is a flag that the main state machine uses */
 	}
 	else
 	{
-		active = 0;
+		g_active = 0;
 	}
 }   /* end of timer ISR */
 
@@ -521,21 +496,21 @@ ISR(TIMER1_COMPA_vect)                  /*timer1 interrupt 1Hz */
 
 /****************************************************
 **
-** Function to send a CW message
+** Function to send a CW character
 **
 **************************************************** */
-void  Send_Message(int imessage, int speed)
+void  Send_Character(int imessage, int speed)
 {
 	/* Morse Code timing
 	 * Dit              = 1 time unit (reference)
 	 * Dah              = 3 time units
 	 * Symbol space     = 1 time units
-	 * letter Space     = 3 time units
+	 * Letter Space     = 3 time units
 	 * Word space       = 7 time units
 	 *{ */
 	int time;
 
-	if(imessage == ' ')
+	if(imessage == '_')
 	{
 		word_space(speed);
 	}
@@ -543,54 +518,45 @@ void  Send_Message(int imessage, int speed)
 	{
 		while(1)
 		{
-			/*
-			 * A trap to catch the condition where number 5 is same as ASCII space
-			 * changed encoding in code table to set MSB for # 5 as a workaround
-			 */
-			if(imessage == TX5)
-			{
-				imessage = 0x20;    /* set it back to this so this loop will encode a number 5                           */
-			}
-			
-			if((imessage & 0X01 ) == 0x01)
+			if((imessage & 0X01 ) == 0x01) /* dah */
 			{
 				if(g_enable_LEDs)
 				{
-					digitalWrite(13, HIGH); /*  nano LED */
+					digitalWrite(PIN_NANO_LED, HIGH);   /*  nano LED */
 				}
-				digitalWrite(2, HIGH);      /* TX key line */
+
+				digitalWrite(PIN_NANO_KEY, HIGH);       /* TX key line */
 				time = speed * 3;
 				delay(time);
-				digitalWrite(13, LOW);      /* arduino nano LED */
-				digitalWrite(2, LOW);       /* TX key line */
+				digitalWrite(PIN_NANO_LED, LOW);        /* arduino nano LED */
+				digitalWrite(PIN_NANO_KEY, LOW);        /* TX key line */
 
 			}
-			else
+			else /* dit */
 			{
-				/*OUTPUT_BIT(CW_KEY, 1);  // Dit */
 				if(g_enable_LEDs)
 				{
-					digitalWrite(13, HIGH); /* arduino nano LED */
+					digitalWrite(PIN_NANO_LED, HIGH);   /* arduino nano LED */
 				}
-				digitalWrite(2, HIGH);      /* TX key line */
+				digitalWrite(PIN_NANO_KEY, HIGH);       /* TX key line */
 				delay(speed);
 
-				digitalWrite(13, LOW);      /* arduino nano LED */
-				digitalWrite(2, LOW);       /* TX key line */
+				digitalWrite(PIN_NANO_LED, LOW);        /* arduino nano LED */
+				digitalWrite(PIN_NANO_KEY, LOW);        /* TX key line */
 			}
 
-			imessage = imessage >> 1;       /* shift right one bit */
+			imessage = imessage >> 1;                   /* shift right one bit */
 			if(imessage == 1)
 			{
-				break;                      /* break the loop */
+				break;                                  /* break the loop */
 			}
 			/*Do a symbol space */
-			delay(speed);                   /*Symbol space */
+			delay(speed);                               /*Symbol space */
 		}
 
 		/* Do a letter space */
-		time = speed * 3;                   /* */
-		delay(time);                        /*inter character (letter) space */
+		time = speed * 3;                               /* */
+		delay(time);                                    /*inter character (letter) space */
 	}
 }
 
@@ -605,7 +571,7 @@ void word_space(int speed)
 {
 	int time;
 
-	time =  speed * 7;
+	time =  speed * 4;  /* a 3-unit space was already sent following the last character: 4 + 3 = 7 */
 	delay(time);
 
 	return;
@@ -622,7 +588,7 @@ void loop()
 {
 	/* put your main code here, to run repeatedly: */
 
-	int message, id;
+	int id;
 	int speed;
 	int fast_speed = 50;        /* for last part of cycle */
 	int slow_speed = 80;        /* for first 30 seconds of cycle */
@@ -634,7 +600,7 @@ void loop()
  *
  * This will place us in fox O mode
  * FOX O mode */
-	if(foxO == 1)
+	if(g_foxO == 1)
 	{
 		while(1)
 		{
@@ -654,243 +620,186 @@ void loop()
 			speed = 70;
 			while(1)
 			{
-
-				message = 0x02; /* E */
-				Send_Message(message, speed);
-				word_space(speed);
-				word_space(speed);
-				if(seconds > 58)
+				transmitString((char*)"E", speed);
+				if(g_seconds > 58)
 				{
 					id = 1;
 					break;
 				}
 				handleLinkBusMsgs();
-
 			}
-
-
 		}
-
-		/***********************************************************************
-		 *  Handle arriving Linkbus messages
-		 ************************************************************************/
-	}                               /* end of the fox O loop */
-
-
+	}                                   /* end of the fox O loop */
+	else
+	{
 /*
  * A R D F cycles MO and DEMO
  */
-	while(1)                        /* Start of the standard ARDF and demo mode loop */
-	{
-		/*get ready for first pass
-		 * */
-		id    = 1;                  /* set first time pass flag */
-		speed = very_fast_speed;    /* super Fast ID CW speed */
-		/* ID real fast to get past the ID ASAP
-		 *
-		 * ID the transmitter with the call sign
-		 * */
-
-		while(active)
+		while(1)                        /* Start of the standard ARDF and demo mode loop */
 		{
-			/*Serial.println(seconds);
-			 * Serial.println(minutes);
-			 * Serial.println(active); */
-			if(id == 1)                 /* turns on ID for US version */
-			{
-				/* send transmitter call sign
-				 * call sign WB8WFK
-				 * */
-				transmitString(g_messages_text[STATION_ID], speed);
-				id = 0;                 /* clear ID Flag */
-			}                           /* end of CW ID space */
-
-			/*************************************************************
-			**
-			**          now send MOX based on Fox number
-			**
-			************************************************************* */
-			speed = slow_speed;         /* Set Slow CW speed for non hams // was 100
-			                             * I.E. boy scouts, school groups
-			                             * and Orinereering clubs.
-			                             * */
-			word_space(speed);          /* have a gap between CW ID and first Mox */
-			/*
-			 * Main MOX send loop
+			/* get ready for first pass */
+			id    = 1;                  /* set first time pass flag */
+			speed = very_fast_speed;    /* super Fast ID CW speed */
+			/* ID real fast to get past the ID ASAP
+			 *
+			 * ID the transmitter with the call sign
 			 * */
-			while( seconds < 50)
-			{
-				if(seconds > 30)        /* do we switch CW speed to high speed for hams */
-				{                       /* at 1/2 cycle point */
-					speed = fast_speed; /* Yes set fast CW speed for balance of cycle was 55 for pic */
-				}                       /* for hams. */
 
-				switch(g_fox)           /* select the FOX (MOX) to send */
+			while(g_active)
+			{
+				/*Serial.println(g_seconds);
+				 * Serial.println(g_minutes);
+				 * Serial.println(g_active); */
+				if(id == 1) /* turns on ID for US version */
 				{
-					case 0:             /* Fox number home */
-					{
-						/* Send MO */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
+					/* send transmitter call sign
+					 * call sign WB8WFK
+					 * */
+					transmitString(g_messages_text[STATION_ID], speed);
+					word_space(speed);
+					id = 0;                 /* clear ID Flag */
+				}                           /* end of CW ID space */
 
-					case 1:             /* Fox number 1 */
-					{
-						/* Send MOE */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x02; /* E */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
-
-					case 2:             /* Fox number 2 */
-					{
-						/* Send MOI */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x04; /* I */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
-
-					case 3:             /* Fox number 3 */
-					{
-						/* Send MOS */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x08; /* S */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
-
-					case 4:             /* Fox number 4 */
-					{
-						/* Send MOH */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x10; /* H */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
-
-					case 5:             /* Fox number 5 */
-					{
-						/* Send MO5 */
-						message = 0x07; /* M */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = 0x0F; /* O */
-						Send_Message(message, speed);
-						word_space(speed);
-						message = TX5;  /* 5  make A0 so to get around space issue  */
-						Send_Message(message, speed);
-						word_space(speed);
-						handleLinkBusMsgs();
-					}
-					break;
-				}                                   /* end of fox # case test */
-			}                                       /* end of mox loop */
-
-			if((seconds > 50) && (seconds < 55))    /* a window to enter */
-			{
-				/* Signal the end of the cycle
-				 * send a letter C then do the end of cycle tone */
-				message = 0x15;                     /*letter  C */
-				Send_Message(message, speed);
-				word_space(speed);
-				EOC_KEY = 1;                        /* force a key down for end of cycle */
+				/*************************************************************
+				**
+				**          now send MOX based on Fox number
+				**
+				************************************************************* */
+				speed = slow_speed;         /* Set Slow CW speed for non hams // was 100
+				                             * I.E. boy scouts, school groups
+				                             * and Orinereering clubs.
+				                             * */
 				/*
-				 * To do. For the Arduino version its possable to add a low battery monitor
-				 * that will turn off the long tone at the end of the cycle to
-				 * aleart the event crew to swap out battery.
+				 * Main MOX send loop
 				 * */
-
-				/*******************************************
-				**
-				**      send the long tone at the
-				**      end of an ARDF cycle
-				**
-				******************************************* */
-				if(g_enable_LEDs)
+				while( g_seconds < 50)
 				{
-					digitalWrite(13, HIGH); /*arduino turn on end of cycle LED */
-				}
-				digitalWrite(2, HIGH);      /*TX key line. Force a EOC key down */
-				while(EOC_KEY)
+					if(g_seconds > 30)      /* do we switch CW speed to high speed for hams */
+					{                       /* at 1/2 cycle point */
+						speed = fast_speed; /* Yes set fast CW speed for balance of cycle was 55 for pic */
+					}                       /* for hams. */
+
+					switch(g_fox)           /* select the FOX (MOX) to send */
+					{
+						case 0:             /* Fox number home */
+						{
+							/* Send MO */
+							transmitString((char*)"MO_", speed);
+						}
+						break;
+
+						case 1: /* Fox number 1 */
+						{
+							/* Send MOE */
+							transmitString((char*)"MOE_", speed);
+						}
+						break;
+
+						case 2: /* Fox number 2 */
+						{
+							/* Send MOI */
+							transmitString((char*)"MOI_", speed);
+						}
+						break;
+
+						case 3: /* Fox number 3 */
+						{
+							/* Send MOS */
+							transmitString((char*)"MOS_", speed);
+						}
+						break;
+
+						case 4: /* Fox number 4 */
+						{
+							/* Send MOH */
+							transmitString((char*)"MOH_", speed);
+						}
+						break;
+
+						case 5: /* Fox number 5 */
+						{
+							/* Send MO5 */
+							transmitString((char*)"MO5_", speed);
+						}
+						break;
+
+						default: /* invalid */
+						{
+							resetFunc();
+						}
+						break;
+					}                                       /* end of fox # case test */
+				}                                           /* end of mox loop */
+
+				if((g_seconds >= 50) && (g_seconds < 55))   /* a window to enter */
 				{
-					/* key down transmitter for end of cycle tone after letter C
-					 * KEYdown was set before entering this loop
-					 * just spend some time here until done */
+					/* Signal the end of the cycle send a letter C then do the end of cycle tone */
+					transmitString((char*)"C", speed);
 
-					handleLinkBusMsgs();
-				}
+					EOC_KEY = 1;    /* force a key down for end of cycle */
+					/*
+					 * To do. For the Arduino version its possible to add a low battery monitor
+					 * that will turn off the long tone at the end of the cycle to
+					 * alert the event crew to swap out battery.
+					 * */
 
-				digitalWrite(13, LOW);  /* arduino turn off end of cycle LED */
-				digitalWrite(2, LOW);   /* turn off TX key line */
-			}                           /* end of > 50 second checker */
-		}                               /* end of while active loop */
+					/*******************************************
+					**
+					**      send the long tone at the
+					**      end of an ARDF cycle
+					**
+					******************************************* */
+					if(g_enable_LEDs)
+					{
+						digitalWrite(PIN_NANO_LED, HIGH);   /*arduino turn on end of cycle LED */
+					}
 
-		/* a trap to walk us through demo mode by cycling fox number */
-		if(demo == 1)
-		{
-			g_fox++;        /* cycle to next one */
-			if(g_fox > 5)
+					digitalWrite(PIN_NANO_KEY, HIGH);       /*TX key line. Force a EOC key down */
+
+					while(EOC_KEY)
+					{
+						/* key down transmitter for end of cycle tone after letter C
+						 * KEYdown was set before entering this loop
+						 * just spend some time here until done */
+
+						handleLinkBusMsgs();
+					}
+
+					digitalWrite(PIN_NANO_LED, LOW);    /* arduino turn off end of cycle LED */
+					digitalWrite(PIN_NANO_KEY, LOW);    /* turn off TX key line */
+
+					/* a trap to walk us through demo mode by cycling fox number */
+					if(g_demo == 1)
+					{
+						g_fox++;                    /* cycle to next one */
+						if(g_fox > 5)
+						{
+							g_fox = 1;              /*reset to 1 */
+						}
+					}
+				}                                   /* end of > 50 second checker */
+			}                                       /* end of while active loop */
+
+			if(g_enable_LEDs && !g_demo)            /* below will flash LED when offcycle for a heartbeat indicator */
 			{
-				g_fox = 1;  /*reset to 1 */
+				delay(1000);                        /* delay between off cycle flash events */
+				digitalWrite(PIN_NANO_LED, HIGH);   /* arduino flash led when off cycle turn it on */
+				delay(100);                         /* led on time */
+				digitalWrite(PIN_NANO_LED, LOW);    /* arduino flash led when off cycle turn it off */
 			}
-		}
 
-		/* below will flash LED when offcycle for a heartbeat indicator */
-		if(g_enable_LEDs)
-		{
-			delay(1000);            /* delay between offf cycle flash events */
-			digitalWrite(13, HIGH); /* arduino flash led when off cycle turn it on */
-			delay(100);             /* led on time */
-			digitalWrite(13, LOW);  /* arduino flash led when off cycle turn it off */
-		}
-
-		handleLinkBusMsgs();
-	}                               /* end of while 1 loop */
+			handleLinkBusMsgs();
+		}                                           /* end of while 1 loop */
+	}
 }
 
 int codeBits(char alphaNum)
 {
 	switch(alphaNum)
 	{
-		case ' ':
+		case '_':
 		{
-			return( ' ');
+			return( '_');
 		}
 
 		case '0':   /* 0 -----         00111111   0x3F */
@@ -908,8 +817,8 @@ int codeBits(char alphaNum)
 		case '4':   /* 4 ....-         00110000   0x30 */
 		{ return( 0x30); }
 
-		case '5':   /* 5 .....         00100000   0x20 make 10100000 0xA0 so its not same as ASCII space and mask out upper bit and trap in send message to make back to 0x20*/
-		{ return( TX5); }
+		case '5':   /* 5 .....         00100000   0x20 */
+		{ return( 0x20); }
 
 		case '6':   /* 6 -....         00100001   0x21 */
 		{ return( 0x21); }
@@ -1044,6 +953,18 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					if((d >= 0) && (d <= 7))
 					{
 						g_override_DIP_switches = d;
+						g_fox = d;
+
+						if(g_fox == 6 ) /* trap for invalid > 6 fox */
+						{
+							g_demo = 1; /* force to demo mode */
+							g_fox = 1;  /* start with MOE */
+						}
+
+						if(g_fox == 7 ) /* put us in fox O mode */
+						{
+							g_foxO = 1; /* force to fox O mode */
+						}
 					}
 
 					saveAllEEPROM();
@@ -1152,13 +1073,20 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				{
 					strncpy(g_messages_text[STATION_ID], lb_buff->fields[FIELD1], MAX_PATTERN_TEXT_LENGTH);
 
-					if(g_messages_text[STATION_ID][0])
+					if(lb_buff->fields[FIELD2][0])
 					{
-/*            g_time_needed_for_ID = (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID], g_id_codespeed)) / 1000; */
+						strcat(g_messages_text[STATION_ID], "_");
+						strcat(g_messages_text[STATION_ID], lb_buff->fields[FIELD2]);
 					}
 
 					saveAllEEPROM();
 				}
+
+				if(g_messages_text[STATION_ID][0])
+				{
+/*            g_time_needed_for_ID = (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID], g_id_codespeed)) / 1000; */
+				}
+
 
 				sprintf(g_tempStr, "ID:%s\n", g_messages_text[STATION_ID]);
 				linkbus_send_text(g_tempStr);
@@ -1201,8 +1129,8 @@ void transmitString(char msg[], int speed)
 
 	for(int i = 0; i < len; i++)
 	{
-		Send_Message(codeBits(msg[i]), speed);
-		word_space(speed);
+		Send_Character(codeBits(msg[i]), speed);
+		handleLinkBusMsgs();
 	}
 }
 
