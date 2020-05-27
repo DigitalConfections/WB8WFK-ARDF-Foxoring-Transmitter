@@ -31,8 +31,8 @@
 //#include "si5351.h"
 
 #define LINKBUS_MAX_MSG_LENGTH 50
-#define LINKBUS_MIN_MSG_LENGTH 3    /* shortest message: $TTY; */
-#define LINKBUS_MAX_MSG_FIELD_LENGTH 21
+#define LINKBUS_MIN_MSG_LENGTH 2    /* shortest message: GO */
+#define LINKBUS_MAX_MSG_FIELD_LENGTH 10
 #define LINKBUS_MAX_MSG_NUMBER_OF_FIELDS 3
 #define LINKBUS_NUMBER_OF_RX_MSG_BUFFERS 2
 #define LINKBUS_MAX_TX_MSG_LENGTH 40

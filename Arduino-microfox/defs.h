@@ -59,19 +59,18 @@ typedef unsigned char uint8_t;
 #define null 0
 #endif
 
+#define PIN_NANO_LED 13
+#define PIN_NANO_KEY 2
+#define PIN_NANO_SYNC 3
+#define PIN_NANO_DIP_0 4
+#define PIN_NANO_DIP_1 5
+#define PIN_NANO_DIP_2 6
+
 #ifdef INCLUDE_DAC081C085_SUPPORT
    #define PA_DAC DAC081C_I2C_SLAVE_ADDR_A0
    #define AM_DAC DAC081C_I2C_SLAVE_ADDR_A1
    #define BIAS_DAC DAC081C_I2C_SLAVE_ADDR_A2
 #endif
-
-typedef enum {
-//	TX1 = 0xA4,
-//	TX2 = 0xA3,
-//	TX3 = 0xA2,
-//	TX4 = 0xA1,
-	TX5 = 0xA0
-	} Tx_t;
 
 /*******************************************************/
 /* Error Codes                                                                   */
