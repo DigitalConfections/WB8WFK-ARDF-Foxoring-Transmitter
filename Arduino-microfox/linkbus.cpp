@@ -54,6 +54,8 @@ static char g_tempMsgBuff[LINKBUS_MAX_MSG_LENGTH];
 
 /* Local function prototypes */
 BOOL linkbus_start_tx(void);
+BOOL linkbus_send_text(char* text);
+
 
 /* Module global variables */
 static volatile BOOL linkbus_tx_active = FALSE; /* volatile is required to ensure optimizer handles this properly */
@@ -336,25 +338,27 @@ void lb_echo_char(uint8_t c)
 
 BOOL lb_send_string(char* str, BOOL wait)
 {
-	BOOL err;
+	BOOL err = FALSE;
 
 	if(str == NULL)
 	{
 		return( TRUE);
 	}
+	
 	if(strlen(str) > LINKBUS_MAX_TX_MSG_LENGTH)
 	{
 		return( TRUE);
 	}
+	
 	strncpy(g_tempMsgBuff, str, LINKBUS_MAX_TX_MSG_LENGTH);
 
 	if(wait)
 	{
-		while(linkbus_send_text(g_tempMsgBuff))
+		while((err = linkbus_send_text(g_tempMsgBuff)))
 		{
 			;
 		}
-		while(linkbusTxInProgress())
+		while(!err && linkbusTxInProgress())
 		{
 			;
 		}

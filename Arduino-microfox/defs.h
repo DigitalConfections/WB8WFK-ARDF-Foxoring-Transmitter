@@ -57,7 +57,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.2"
+#define SW_REVISION "0.3"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -113,7 +113,7 @@ INVALID_FOX
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xAD
+#define EEPROM_INITIALIZED_FLAG 0xAE
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
@@ -129,6 +129,7 @@ INVALID_FOX
 #define EEPROM_INTRA_CYCLE_DELAY_TIME_DEFAULT 0
 #define EEPROM_ID_TIME_INTERVAL_DEFAULT 300
 #define EEPROM_CLOCK_CALIBRATION_DEFAULT 15629
+#define EEPROM_TEMP_CALIBRATION_DEFAULT 147
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
 #define EEPROM_ENABLE_LEDS_DEFAULT 1
 #define EEPROM_ENABLE_SYNC_DEFAULT 1
