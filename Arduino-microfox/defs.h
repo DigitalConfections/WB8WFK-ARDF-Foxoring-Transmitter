@@ -24,14 +24,40 @@
 #ifndef DEFS_H
 #define DEFS_H
 
-#include <Arduino.h>
+// #define COMPILE_FOR_ATMELSTUDIO7
+
+#ifdef COMPILE_FOR_ATMELSTUDIO7
+	#include <avr/io.h>
+	#include <util/delay.h>
+	#include <avr/interrupt.h>
+#else
+	#include "Arduino.h"
+#endif // COMPILE_FOR_ATMELSTUDIO7
+
+#ifndef HIGH
+#define HIGH 0x1
+#endif
+
+#ifndef LOW
+#define LOW  0x0
+#endif
+
+#ifndef INPUT
+#define INPUT 0x0
+#endif
+
+#ifndef OUTPUT
+#define OUTPUT 0x1
+#endif
+
+#define bit_iz_set(sfr, bit) ((*(volatile uint8_t *)((uint16_t) &(sfr))) & (1 << bit))
 
 /* #define F_CPU 16000000UL / * gets declared in makefile * / */
 
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.1"
+#define SW_REVISION "0.2"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -66,94 +92,17 @@ typedef unsigned char uint8_t;
 #define PIN_NANO_DIP_1 5
 #define PIN_NANO_DIP_2 6
 
-#ifdef INCLUDE_DAC081C085_SUPPORT
-   #define PA_DAC DAC081C_I2C_SLAVE_ADDR_A0
-   #define AM_DAC DAC081C_I2C_SLAVE_ADDR_A1
-   #define BIAS_DAC DAC081C_I2C_SLAVE_ADDR_A2
-#endif
-
-/*******************************************************/
-/* Error Codes                                                                   */
-/*******************************************************/
 typedef enum {
-	ERROR_CODE_NO_ERROR = 0x00,
-	ERROR_CODE_REPORT_NO_ERROR = 0x01,
-	ERROR_CODE_2M_BIAS_SM_NOT_READY = 0xC6,
-	ERROR_CODE_EVENT_STATION_ID_ERROR = 0xC7,
-	ERROR_CODE_EVENT_PATTERN_CODE_SPEED_NOT_SPECIFIED = 0xC8,
-	ERROR_CODE_EVENT_PATTERN_NOT_SPECIFIED = 0xC9,
-	ERROR_CODE_EVENT_TIMING_ERROR = 0xCA,
-	ERROR_CODE_EVENT_MISSING_TRANSMIT_DURATION = 0xCB,
-	ERROR_CODE_EVENT_MISSING_START_TIME = 0xCC,
-	ERROR_CODE_EVENT_NOT_CONFIGURED = 0xCD,
-    ERROR_CODE_ILLEGAL_COMMAND_RCVD = 0xCE,
-    ERROR_CODE_SW_LOGIC_ERROR = 0xCF,
-	ERROR_CODE_POWER_LEVEL_NOT_SUPPORTED = 0xF5,
-	ERROR_CODE_NO_ANTENNA_PREVENTS_POWER_SETTING = 0xF6,
-	ERROR_CODE_NO_ANTENNA_FOR_BAND = 0xF7,
-	ERROR_CODE_WD_TIMEOUT = 0xF8,
-	ERROR_CODE_SUPPLY_VOLTAGE_ERROR = 0xF9,
-	ERROR_CODE_BUCK_REG_OUTOFSPEC = 0xFA,
-	ERROR_CODE_CLKGEN_NONRESPONSIVE = 0xFB,
-	ERROR_CODE_RTC_NONRESPONSIVE = 0xFC,
-	ERROR_CODE_DAC3_NONRESPONSIVE = 0xFD,
-	ERROR_CODE_DAC2_NONRESPONSIVE = 0xFE,
-	ERROR_CODE_DAC1_NONRESPONSIVE = 0xFF
-	} EC;
-
-/*******************************************************/
-/* Status Codes                                                                 */
-/*******************************************************/
-typedef enum {
-	STATUS_CODE_IDLE = 0x00,
-	STATUS_CODE_REPORT_IDLE = 0x01,
-	STATUS_CODE_NO_ANT_ATTACHED = 0xE9,
-	STATUS_CODE_2M_ANT_ATTACHED = 0xEA,
-	STATUS_CODE_80M_ANT_ATTACHED = 0xEB,
-	STATUS_CODE_RECEIVING_EVENT_DATA = 0xEC,
-	STATUS_CODE_RETURNED_FROM_SLEEP = 0xED,
-	STATUS_CODE_BEGINNING_XMSN_THIS_CYCLE = 0xEE,
-	STATUS_CODE_SENDING_ID = 0xEF,
-	STATUS_CODE_EVENT_NEVER_ENDS = 0xFB,
-	STATUS_CODE_EVENT_FINISHED = 0xFC,
-	STATUS_CODE_EVENT_STARTED_NOW_TRANSMITTING = 0xFD,
-	STATUS_CODE_EVENT_STARTED_WAITING_FOR_TIME_SLOT = 0xFE,
-	STATUS_CODE_WAITING_FOR_EVENT_START = 0xFF
-	} SC;
-
-/*******************************************************/
-/*******************************************************
-* ADC Scale Factors */
-/* Battery voltage should be read when +12V supply is enabled and all transmitters are fully powered off */
-#define ADC_REF_VOLTAGE_mV 1100UL
-
-#define ADC_MAX_VOLTAGE_MV 4200L /* maximum voltage the ADC can read */
-#define BATTERY_VOLTAGE_MAX_MV 4200L /* voltage at which the battery is considered to be fully charged */
-#define BATTERY_DROP 320L /* voltage drop between the battery terminals and the ADC input while powering the ESP8266 */
-#define BATTERY_DROP_OFFSET (BATTERY_DROP * 1023L)
-#define VBAT(x) (BATTERY_DROP + (x * ADC_MAX_VOLTAGE_MV) / 1023L)
-#define BATTERY_PERCENTAGE(x, y) ( ( 100L * ((x * ADC_MAX_VOLTAGE_MV + BATTERY_DROP_OFFSET) - (1023L * y)) )  / ((BATTERY_VOLTAGE_MAX_MV - y) * 1023L))
-
-#define SUPPLY_VOLTAGE_MAX_MV 14100L
-#define VSUPPLY(x)((x * SUPPLY_VOLTAGE_MAX_MV) / 1023L)
-
-#define PA_VOLTAGE_MAX_MV 14100L
-#define VPA(x)((x * PA_VOLTAGE_MAX_MV) / 1023L)
-
-typedef uint16_t BatteryLevel;  /* in milliVolts */
-
-#define VOLTS_5 (((5000L - BATTERY_DROP) * 1023L) / BATTERY_VOLTAGE_MAX_MV)
-#define VOLTS_3_19 (((3190L - BATTERY_DROP) * 1023L) / BATTERY_VOLTAGE_MAX_MV)
-#define VOLTS_3_0 (((3000L - BATTERY_DROP) * 1023L) / BATTERY_VOLTAGE_MAX_MV)
-#define VOLTS_2_4 (((2400L - BATTERY_DROP) * 1023L) / BATTERY_VOLTAGE_MAX_MV)
-
-#define POWER_OFF_VOLT_THRESH_MV VOLTS_2_4 /* 2.4 V = 2400 mV */
-#define POWER_ON_VOLT_THRESH_MV VOLTS_3_0  /* 3.0 V = 3000 mV */
-
-#define ANTENNA_DETECT_THRESH 20
-#define ANTENNA_DETECT_DEBOUNCE 50
-
-#define NUMBER_OF_ESSENTIAL_EVENT_PARAMETERS 14
+BEACON = 0,
+FOX_1,
+FOX_2,
+FOX_3,
+FOX_4,
+FOX_5,
+FOX_DEMO,
+FOXORING,
+INVALID_FOX
+} FoxType;
 
 
 /*******************************************************/
@@ -288,8 +237,8 @@ typedef enum
 #define TIMER2_5_8HZ 100
 #define TIMER2_0_5HZ 1000
 
-#define BEEP_SHORT 100
-#define BEEP_LONG 65535
+#define BLINK_SHORT 100
+#define BLINK_LONG 500
 
 /******************************************************
  * UI Hardware-related definitions */

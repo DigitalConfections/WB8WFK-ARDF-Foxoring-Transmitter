@@ -25,10 +25,11 @@
 
 #include "linkbus.h"
 #include "defs.h"
-//#include "util.h"
-//#include <string.h>
-//#include <stdio.h>
-//#include <avr/wdt.h>
+
+#ifdef COMPILE_FOR_ATMELSTUDIO7
+#include <string.h>
+#include <stdio.h>
+#endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 
 /* Global Variables */
 static volatile BOOL g_bus_disabled = TRUE;
@@ -36,17 +37,18 @@ static const char crlf[] = "\n";
 static char lineTerm[8] = "\n";
 static const char textPrompt[] = "> ";
 
-static const char textHelp[][LINKBUS_MAX_TX_MSG_LENGTH] = { "\nCommands:\n",
-															"  CAL - Calibrate\n",
-															"  DIP - Override DIP\n",
-															"  FAC - Factory reset\n",
-															"  GO  - Sync clock\n",
-															"  ID -  Set callsign\n",
-															"  LED - LED on/off\n",
-															"  RST - Reset\n",
-															"  SYN - Sync on/off\n",
-															"  TEM - Temperature\n",
-															"  VER - S/W version\n" };
+static const char textHelp[][23] = { "\nCommands:\n",
+									 "  CAL - Calibrate\n",
+									 "  DIP - Override DIP\n",
+									 "  FAC - Factory reset\n",
+									 "  GO  - Sync clock\n",
+									 "  ID -  Set callsign\n",
+									 "  LED - LED on/off\n",
+									 "  RST - Reset\n",
+									 "  SPD - Code speed\n",
+									 "  SYN - Sync on/off\n",
+									 "  TEM - Temperature\n",
+									 "  VER - S/W version\n" };
 
 static char g_tempMsgBuff[LINKBUS_MAX_MSG_LENGTH];
 
@@ -309,71 +311,20 @@ BOOL linkbus_send_text(char* text)
 
 
 /***********************************************************************************
- *  Support for creating and sending various Linkbus messages is provided below.
- ************************************************************************************/
-
-void lb_send_msg(LBMessageType msgType, char* msgLabel, char* msgStr)
-{
-	char prefix = '$';
-	char terminus = ';';
-
-	if(msgType == LINKBUS_MSG_REPLY)
-	{
-		prefix = '!';
-	}
-	else if(msgType == LINKBUS_MSG_QUERY)
-	{
-		terminus = '?';
-	}
-
-	sprintf(g_tempMsgBuff, "%c%s,%s%c", prefix, msgLabel, msgStr, terminus);
-
-	linkbus_send_text(g_tempMsgBuff);
-}
-
-
-void lb_send_sync(void)
-{
-	sprintf(g_tempMsgBuff, ".....");
-	linkbus_send_text(g_tempMsgBuff);
-}
-
-
-void lb_broadcast_num(uint16_t data, char* str)
-{
-	char t[6] = "\0";
-
-	sprintf(t, "%u", data);
-	g_tempMsgBuff[0] = '\0';
-
-	if(str)
-	{
-		sprintf(g_tempMsgBuff, "%s,%s;", str, t);
-	}
-
-	if(g_tempMsgBuff[0])
-	{
-		linkbus_send_text(g_tempMsgBuff);
-	}
-}
-
-/***********************************************************************************
  *  Support for creating and sending various Terminal Mode Linkbus messages is provided below.
  ************************************************************************************/
 
 void lb_send_NewPrompt(void)
 {
-	linkbus_send_text((char*)textPrompt);
+	while(linkbus_send_text((char*)textPrompt))
+	{
+		;
+	}
 }
 
 void lb_send_NewLine(void)
 {
 	linkbus_send_text((char*)crlf);
-}
-
-void linkbus_setLineTerm(char* term)
-{
-	sprintf(lineTerm, term);
 }
 
 void lb_echo_char(uint8_t c)
@@ -383,19 +334,37 @@ void lb_echo_char(uint8_t c)
 	linkbus_send_text(g_tempMsgBuff);
 }
 
-BOOL lb_send_string(char* str)
+BOOL lb_send_string(char* str, BOOL wait)
 {
+	BOOL err;
+
 	if(str == NULL)
 	{
 		return( TRUE);
 	}
-	if(strlen(str) > LINKBUS_MAX_MSG_LENGTH)
+	if(strlen(str) > LINKBUS_MAX_TX_MSG_LENGTH)
 	{
 		return( TRUE);
 	}
-	strncpy(g_tempMsgBuff, str, LINKBUS_MAX_MSG_LENGTH);
-	linkbus_send_text(g_tempMsgBuff);
-	return( FALSE);
+	strncpy(g_tempMsgBuff, str, LINKBUS_MAX_TX_MSG_LENGTH);
+
+	if(wait)
+	{
+		while(linkbus_send_text(g_tempMsgBuff))
+		{
+			;
+		}
+		while(linkbusTxInProgress())
+		{
+			;
+		}
+	}
+	else
+	{
+		err = linkbus_send_text(g_tempMsgBuff);
+	}
+
+	return( err);
 }
 
 void lb_send_value(uint16_t value, char* label)
