@@ -35,8 +35,8 @@
 #define LINKBUS_MAX_MSG_FIELD_LENGTH 10
 #define LINKBUS_MAX_MSG_NUMBER_OF_FIELDS 3
 #define LINKBUS_NUMBER_OF_RX_MSG_BUFFERS 2
-#define LINKBUS_MAX_TX_MSG_LENGTH 40
-#define LINKBUS_NUMBER_OF_TX_MSG_BUFFERS 10
+#define LINKBUS_MAX_TX_MSG_LENGTH 30
+#define LINKBUS_NUMBER_OF_TX_MSG_BUFFERS 4
 
 #define LINKBUS_POWERUP_DELAY_SECONDS 6
 
@@ -89,10 +89,6 @@ typedef enum
 {
 	MESSAGE_EMPTY = 0,
 
-	/* TEST EQUIPMENT MESSAGE FAMILY (TEST DEVICE MESSAGING) */
-	MESSAGE_BAND = 'B' * 100 + 'N' * 10 + 'D',      /* $BND,; / $BND? / !BND,; // Set band; field1 = RadioBand */
-	MESSAGE_TTY = 'T' * 100 + 'T' * 10 + 'Y',       /* Adjust for PC communications interface (add crlf, etc.) */
-
 	/*	DUAL-BAND TX MESSAGE FAMILY (FUNCTIONAL MESSAGING) */
 	MESSAGE_CLOCK_CAL = 'C' * 100 + 'A' * 10 + 'L', /* Set Jerry's clock calibration value */
 	MESSAGE_FACTORY_RESET = 'F' * 100 + 'A' * 10 + 'C', /* Sets EEPROM back to defaults */
@@ -102,6 +98,7 @@ typedef enum
 	MESSAGE_TEMP = 'T' * 100 + 'E' * 10 + 'M',      /* Temperature  data */
 	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',        /* Sets amateur radio callsign text */
 	MESSAGE_GO = 'G' * 10 + 'O',					/* Synchronizes clock */
+	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D', /* Set Morse code speeds */
 
 	/* UTILITY MESSAGES */
 	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',		/* Processor reset */
@@ -199,23 +196,11 @@ LinkbusRxBuffer* nextFullRxBuffer(void);
 
 /**
  */
-void lb_send_sync(void);
-
-/**
- */
 BOOL linkbus_send_text(char* text);
 
 /**
 */
 void lb_send_ESP(LBMessageType msgType, char* msg);
-
-/**
- */
-void lb_send_msg(LBMessageType msgType, char* msgLabel, char* msgStr);
-
-/**
- */
-void lb_broadcast_num(uint16_t data, char* str);
 
 /**
  */
@@ -231,16 +216,11 @@ void lb_send_NewLine(void);
 
 /**
  */
-void linkbus_setLineTerm(char* term);
-
-/**
- */
 void lb_echo_char(uint8_t c);
 
 /**
  */
-BOOL lb_send_string(char* str);
-
+BOOL lb_send_string(char* str, BOOL wait);
 /**
  */
 void lb_send_value(uint16_t value, char* label);
