@@ -27,6 +27,7 @@
 
 volatile int g_seconds          = 0;            /* Init timer to first second. Set in ISR checked by main. */
 volatile int g_minutes          = 1;            /* Init timer to cycle 1. */
+volatile int32_t g_seconds_since_sync = 0;      /* Total elapsed time counter */
 FoxType g_fox          = BEACON;                /* Sets Fox number not set by ISR. Set in startup and checked in main. */
 volatile int g_active           = 0;            /* Disable active. set and clear in ISR. Checked in main. */
 
@@ -79,6 +80,7 @@ static uint16_t EEMEM ee_clock_calibration;
 static uint8_t EEMEM ee_override_DIP_switches;
 static uint8_t EEMEM ee_enable_LEDs;
 static uint8_t EEMEM ee_enable_sync;
+static int16_t EEMEM ee_temp_calibration;
 
 static char g_messages_text[2][MAX_PATTERN_TEXT_LENGTH + 1] = { "\0", "\0" };
 static volatile uint8_t g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
@@ -86,6 +88,7 @@ static volatile uint8_t g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
 static volatile uint16_t g_time_needed_for_ID = 0;
 static volatile int16_t g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;  /* amount of time between ID/callsign transmissions */
 static volatile uint16_t g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
+static volatile int16_t g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
 static volatile uint8_t g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
 static volatile uint8_t g_enable_LEDs;
 static volatile uint8_t g_enable_sync;
@@ -246,8 +249,8 @@ void setUpTemp(void);
 
 	if(g_enable_sync && (g_fox != FOXORING) && (g_fox != BEACON) && (g_fox != FOX_DEMO))
 	{
-		linkbus_send_text((char*)"Waiting for sync.\n");
-		linkbus_send_text((char*)"Type \"GO\"\n");
+		lb_send_string((char*)"Waiting for sync.\n", TRUE);
+		lb_send_string((char*)"Type \"GO\"\n", TRUE);
 		lb_send_NewPrompt();
 
 		while(( digitalRead(PIN_NANO_SYNC) == LOW) && !g_start_override)
@@ -262,13 +265,14 @@ void setUpTemp(void);
 	}
 	else
 	{
-		linkbus_send_text((char*)"Tx is running!\n");
+		lb_send_string((char*)"Tx is running!\n", TRUE);
 		lb_send_NewPrompt();
 	}
 
 	TCNT1 = 0;  /* Initialize 1-second counter value to 0 */
 	g_seconds = 0;
 	g_minutes = 0;
+	g_seconds_since_sync = 0;
 
 	g_start_override = TRUE;
 
@@ -456,7 +460,7 @@ ISR(USART_RX_vect)
 			}
 		}
 	}
-}
+}   /* End of UART Rx ISR */
 
 
 /***********************************************************************
@@ -491,7 +495,7 @@ ISR(USART_UDRE_vect)
 			linkbus_end_tx();
 		}
 	}
-}
+}   /* End of UART Tx ISR */
 
 /***********************************************************************
  * Timer/Counter2 Compare Match B ISR
@@ -577,7 +581,7 @@ ISR( TIMER2_COMPB_vect )
 			digitalWrite(PIN_NANO_KEY, LOW);    /* TX key line */
 		}
 	}
-}/* ISR */
+} /* End of Timer 2 ISR */
 
 
 
@@ -591,9 +595,10 @@ ISR( TIMER2_COMPB_vect )
  * modified from ISR example for microfox by Jerry Boyd WB8WFK
  * this runs once a second and generates the cycle and sets control flags for the main controller.
  */
-ISR(TIMER1_COMPA_vect)  /*timer1 interrupt 1Hz */
+ISR(TIMER1_COMPA_vect)      /*timer1 interrupt 1Hz */
 {
-	g_seconds++;        /* one second event - update seconds */
+	g_seconds_since_sync++; /* Total elapsed time counter */
+	g_seconds++;            /* Update seconds */
 
 	if(g_seconds > 59)
 	{
@@ -605,13 +610,13 @@ ISR(TIMER1_COMPA_vect)  /*timer1 interrupt 1Hz */
 			g_minutes = 0;
 		}
 	}
-}   /* end of timer ISR */
+}   /* end of Timer 1 ISR */
 
 
 
 /*
  *
- * here is the main microfox code controller by Jerry Boyd WB8WFK
+ * Here is the main loop for the Microfox Transmitter
  *
  * */
 void loop()
@@ -626,6 +631,7 @@ void loop()
 	{
 		proceed = FALSE;
 
+		/* Choose the appropriate Morse pattern to be sent */
 		if(g_fox == FOX_DEMO)
 		{
 			strcpy(g_messages_text[PATTERN_TEXT], g_morsePatterns[g_minutes + 1]);
@@ -635,7 +641,7 @@ void loop()
 			strcpy(g_messages_text[PATTERN_TEXT], g_morsePatterns[g_fox]);
 		}
 
-		/* Set the pattern to be sent */
+		/* At the appropriate time set the pattern to be sent and start transmissions */
 		if((g_fox == FOX_DEMO) || (g_fox == BEACON) || (g_fox == FOXORING) || (g_fox == (g_minutes + 1)))
 		{
 			BOOL repeat = TRUE;
@@ -679,24 +685,24 @@ void loop()
 
 		if((g_fox == FOX_DEMO))
 		{
-			if((g_callsign_sent) && (g_seconds == 0))
+			if((g_callsign_sent) && (g_seconds == 0))   /* Ensure we've begun the next minute before proceeding */
 			{
 				proceed = TRUE;
 			}
 		}
-		else if((g_fox == BEACON) || (g_fox == FOXORING))
+		else if((g_fox == BEACON) || (g_fox == FOXORING))   /* Proceed as soon as the callsign has been sent */
 		{
 			if(g_callsign_sent)
 			{
 				proceed = TRUE;
 			}
 		}
-		else if((g_fox != (g_minutes + 1)) && g_callsign_sent)
+		else if((g_fox != (g_minutes + 1)) && g_callsign_sent)  /* Turn off transmissions during minutes when this fox should be silent */
 		{
 			g_on_the_air = FALSE;
 		}
 	}
-}
+}   /* End of main loop() */
 
 /* The compiler does not seem to optimize large switch statements correctly */
 void __attribute__((optimize("O0"))) handleLinkBusMsgs()
@@ -740,7 +746,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				}
 
 				sprintf(g_tempStr, "DIP=%u\n", g_override_DIP_switches);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
@@ -761,7 +767,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				}
 
 				sprintf(g_tempStr, "LED:%s\n", g_enable_LEDs ? "ON" : "OFF");
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
@@ -782,7 +788,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				}
 
 				sprintf(g_tempStr, "SYN:%s\n", g_enable_sync ? "ON" : "OFF");
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
@@ -790,12 +796,12 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			{
 				if(g_start_override)
 				{
-					linkbus_send_text((char*)"Already synced!\n");
+					lb_send_string((char*)"Already synced!\n", FALSE);
 				}
 				else
 				{
 					g_start_override = TRUE;
-					linkbus_send_text((char*)"Running!\n");
+					lb_send_string((char*)"Running!\n", FALSE);
 				}
 			}
 			break;
@@ -832,7 +838,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				}
 
 				sprintf(g_tempStr, "Cal=%u\n", g_clock_calibration);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
@@ -858,7 +864,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 				}
 
 				sprintf(g_tempStr, "ID:%s\n", g_messages_text[STATION_ID]);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, TRUE);
 			}
 			break;
 
@@ -877,6 +883,8 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						{
 							g_time_needed_for_ID = (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID], g_id_codespeed)) / 1000;
 						}
+
+						saveAllEEPROM();
 					}
 				}
 				else if(lb_buff->fields[FIELD1][0] == 'P')
@@ -886,28 +894,47 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						speed = atol(lb_buff->fields[FIELD2]);
 						g_pattern_codespeed = CLAMP(5, speed, 20);
 						g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
+
+						saveAllEEPROM();
 					}
 				}
 
 				sprintf(g_tempStr, "ID:  %d wpm\n", g_id_codespeed);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 				sprintf(g_tempStr, "Pat: %d wpm\n", g_pattern_codespeed);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
 			case MESSAGE_VERSION:
 			{
 				sprintf(g_tempStr, "SW Ver:%s\n", SW_REVISION);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
 			case MESSAGE_TEMP:
 			{
+				if(lb_buff->fields[FIELD1][0] == 'C')
+				{
+					if(lb_buff->fields[FIELD2][0])
+					{
+						int16_t v = atoi(lb_buff->fields[FIELD2]);
+
+						if((v > -2000) && (v < 2000))
+						{
+							g_temp_calibration = v;
+							saveAllEEPROM();
+						}
+					}
+
+					sprintf(g_tempStr, "T Cal= %d\n", g_temp_calibration);
+					lb_send_string(g_tempStr, FALSE);
+				}
+
 				float temp = getTemp();
 				sprintf(g_tempStr, "Temp: %dC\n", (int)temp);
-				linkbus_send_text(g_tempStr);
+				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
 
@@ -928,7 +955,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 
 
 /*
- * Set EEPROM to its default values
+ * Set non-volatile variables to their values stored in EEPROM
  */
 void initializeEEPROMVars()
 {
@@ -940,6 +967,7 @@ void initializeEEPROMVars()
 		g_id_codespeed = eeprom_read_byte(&ee_id_codespeed);
 		g_ID_period_seconds = eeprom_read_word(&ee_ID_time);
 		g_clock_calibration = eeprom_read_word(&ee_clock_calibration);
+		g_temp_calibration = (int16_t)eeprom_read_word((uint16_t*)&ee_temp_calibration);
 		g_override_DIP_switches = eeprom_read_byte(&ee_override_DIP_switches);
 		g_enable_LEDs = eeprom_read_byte(&ee_enable_LEDs);
 		g_enable_sync = eeprom_read_byte(&ee_enable_sync);
@@ -968,6 +996,7 @@ void initializeEEPROMVars()
 		g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
 		g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;
 		g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
+		g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
 		g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
 		g_enable_LEDs = EEPROM_ENABLE_LEDS_DEFAULT;
 		g_enable_sync = EEPROM_ENABLE_SYNC_DEFAULT;
@@ -979,7 +1008,7 @@ void initializeEEPROMVars()
 }
 
 /*
- * Save all non-volatile values to EEPROM
+ * Save all changed non-volatile values to EEPROM
  */
 void saveAllEEPROM()
 {
@@ -989,6 +1018,7 @@ void saveAllEEPROM()
 	eeprom_update_byte(&ee_pattern_codespeed, g_pattern_codespeed);
 	eeprom_update_word(&ee_ID_time, g_ID_period_seconds);
 	eeprom_update_word(&ee_clock_calibration, g_clock_calibration);
+	eeprom_update_word((uint16_t*)&ee_temp_calibration, (uint16_t)g_temp_calibration);
 	eeprom_update_byte(&ee_override_DIP_switches, g_override_DIP_switches);
 	eeprom_update_byte(&ee_enable_LEDs, g_enable_LEDs);
 	eeprom_update_byte(&ee_enable_sync, g_enable_sync);
@@ -1008,6 +1038,9 @@ void saveAllEEPROM()
 	eeprom_update_byte((uint8_t*)&ee_pattern_text[i], 0);
 }
 
+/*
+ * Set up registers for measuring processor temperature
+ */
 void setUpTemp(void)
 {
 	/* The internal temperature has to be used
@@ -1031,6 +1064,9 @@ void setUpTemp(void)
 	readADC();
 }
 
+/*
+ * Read the temperature ADC value
+ */
 uint16_t readADC()
 {
 	/* Make sure the most recent ADC read is complete. */
@@ -1044,9 +1080,15 @@ uint16_t readADC()
 	return( result);
 }
 
+/*
+ * Returns the most recent temperature reading
+ */
 float getTemp(void)
 {
+	float offset = (float)g_temp_calibration / 10.;
+
 	/* The offset (first term) was determined empirically */
 	readADC();  /* throw away first reading */
-	return(14.7 + (readADC() - 324.31) / 1.22);
+	return(offset + (readADC() - 324.31) / 1.22);
 }
+

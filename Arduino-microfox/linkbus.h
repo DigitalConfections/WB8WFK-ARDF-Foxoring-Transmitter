@@ -196,14 +196,6 @@ LinkbusRxBuffer* nextFullRxBuffer(void);
 
 /**
  */
-BOOL linkbus_send_text(char* text);
-
-/**
-*/
-void lb_send_ESP(LBMessageType msgType, char* msg);
-
-/**
- */
 void lb_send_Help(void);
 
 /**
