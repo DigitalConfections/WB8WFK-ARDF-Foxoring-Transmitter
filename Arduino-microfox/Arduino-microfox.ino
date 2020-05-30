@@ -25,14 +25,14 @@
 
 #define MAX_PATTERN_TEXT_LENGTH 20
 
-volatile int g_seconds          = 0;            /* Init timer to first second. Set in ISR checked by main. */
-volatile int g_minutes          = 1;            /* Init timer to cycle 1. */
-volatile int32_t g_seconds_since_sync = 0;      /* Total elapsed time counter */
-FoxType g_fox          = BEACON;                /* Sets Fox number not set by ISR. Set in startup and checked in main. */
-volatile int g_active           = 0;            /* Disable active. set and clear in ISR. Checked in main. */
+volatile int g_seconds          = 0;        /* Init timer to first second. Set in ISR checked by main. */
+volatile int g_minutes          = 1;        /* Init timer to cycle 1. */
+volatile int32_t g_seconds_since_sync = 0;  /* Total elapsed time counter */
+FoxType g_fox                   = BEACON;   /* Sets Fox number not set by ISR. Set in startup and checked in main. */
+volatile int g_active           = 0;        /* Disable active. set and clear in ISR. Checked in main. */
 
-volatile int g_on_the_air               = 0;    /* Controls transmitter Morse activity */
-volatile int g_code_throttle    = 0;            /* Adjusts Morse code speed */
+volatile int g_on_the_air       = 0;        /* Controls transmitter Morse activity */
+volatile int g_code_throttle    = 0;        /* Adjusts Morse code speed */
 const char g_morsePatterns[][6] = { "MO ", "MOE ", "MOI ", "MOS ", "MOH ", "MO5 ", "", "5" };
 volatile BOOL g_callsign_sent = FALSE;
 
@@ -118,9 +118,7 @@ void setUpTemp(void);
 	void setup()
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 {
-	initializeEEPROMVars();     /* Initialize variables stored in EEPROM */
-	linkbus_init(BAUD);         /* Start the Link Bus serial comms */
-	setUpTemp();
+	cli();                                  /*stop interrupts for setup */
 
 	/* set pins as outputs */
 	pinMode(PIN_NANO_LED, OUTPUT);  /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
@@ -143,27 +141,7 @@ void setUpTemp(void);
 /*
  * read the dip switches and compute the desired fox number
  * */
-	if(g_override_DIP_switches)
-	{
-		g_fox = (FoxType)g_override_DIP_switches;
-	}
-	else
-	{
-		if(digitalRead(PIN_NANO_DIP_0) == HIGH )    /*Lsb */
-		{
-			g_fox++;
-		}
-		if(digitalRead(PIN_NANO_DIP_1) == HIGH )    /* middle bit */
-		{
-			g_fox += 2;
-		}
-		if(digitalRead(PIN_NANO_DIP_2) == HIGH )    /* MSB */
-		{
-			g_fox += 4;
-		}
-	}
 
-	cli();                              /*stop interrupts for setup */
 
 	digitalWrite(PIN_NANO_LED, OFF);    /* Turn off led sync switch is now open */
 
@@ -198,6 +176,7 @@ void setUpTemp(void);
 	TCCR1A = 0; /* set entire TCCR1A register to 0 */
 	TCCR1B = 0; /* same for TCCR1B */
 	TCNT1 = 0;  /*initialize counter value to 0 */
+
 /* Set compare match register for 1hz increments
  ************************************************************
  ** USE THIS TO FIX BOARD PROCESSOR CLOCK ERROR
@@ -210,20 +189,32 @@ void setUpTemp(void);
 /*	OCR1A = 15629;/ * = (16.006*10^6) / (1*1024) - 1 (must be <65536)   //15629 computed for + 16.006 MHz off frequency clock board 3 * / */
 	OCR1A = g_clock_calibration;
 
-	/**
-	 * TIMER2 is for periodic interrupts to drive Morse code generation */
-	OCR2A = 0x0C;                                       /* set frequency to ~300 Hz (0x0c) */
-	TCCR2A |= (1 << WGM01);                             /* set CTC with OCRA */
-	TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);  /* 1024 Prescaler */
-	TIMSK2 |= (1 << OCIE0B);                            /* enable compare interrupt */
-
 /* turn on CTC mode */
 	TCCR1B |= (1 << WGM12);
 /* Set CS11 bit for 1024 prescaler */
 	TCCR1B |= (1 << CS12) | (1 << CS10);
 /* enable timer compare interrupt */
 	TIMSK1 |= (1 << OCIE1A);
-	sei();  /*allow interrupts. Arm and run */
+
+	/**
+	 * TIMER2 is for periodic interrupts to drive Morse code generation */
+	/* Reset control registers */
+	TCCR2A = 0;
+	TCCR2B = 0;
+	TCCR2A |= (1 << WGM21);                             /* set Clear Timer on Compare Match (CTC) mode with OCR2A setting the top */
+	TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);  /* 1024 Prescaler */
+	OCR2A = 0x0C;                                       /* set frequency to ~300 Hz (0x0c) */
+	/* Use system clock for Timer/Counter2 */
+	ASSR &= ~(1 << AS2);
+	/* Reset Timer/Counter2 Interrupt Mask Register */
+	TIMSK2 = 0;
+	TIMSK2 |= (1 << OCIE2B);    /* Output Compare Match B Interrupt Enable */
+
+	sei();                      /*allow interrupts. Arm and run */
+
+	initializeEEPROMVars();     /* Initialize variables stored in EEPROM */
+	linkbus_init(BAUD);         /* Start the Link Bus serial comms */
+	setUpTemp();
 
 	lb_send_string((char*)"\n\nStored Data:\n", TRUE);
 	sprintf(g_tempStr, "  ID: %s\n", g_messages_text[STATION_ID]);
@@ -242,11 +233,31 @@ void setUpTemp(void);
  * note Timer0 - An 8 bit timer used by Arduino functions delay(), millis() and micros().
  *      Timer1 - A 16 bit timer used by the Servo() library
  *      Timer2 - An 8 bit timer used by the Tone() library */
+
+	if(g_override_DIP_switches)
+	{
+		g_fox = (FoxType)g_override_DIP_switches;
+	}
+	else
+	{
+		if(digitalRead(PIN_NANO_DIP_0) == HIGH )    /*Lsb */
+		{
+			g_fox++;
+		}
+		if(digitalRead(PIN_NANO_DIP_1) == HIGH )    /* middle bit */
+		{
+			g_fox += 2;
+		}
+		if(digitalRead(PIN_NANO_DIP_2) == HIGH )    /* MSB */
+		{
+			g_fox += 4;
+		}
+	}
+
 /*
- * we now look for the sync line and then arm the timer interrupts
+ * we now look at the sync line and then reset the time counters
  * when the sync switch is released.
  * */
-
 	if(g_enable_sync && (g_fox != FOXORING) && (g_fox != BEACON) && (g_fox != FOX_DEMO))
 	{
 		lb_send_string((char*)"Waiting for sync.\n", TRUE);
@@ -680,7 +691,10 @@ void loop()
 		}
 		else if(g_seconds == 30)    /* Speed up code after 30 seconds */
 		{
-			g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed * 2);
+			if((g_fox != BEACON) && (g_fox != FOXORING))
+			{
+				g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed * 2);
+			}
 		}
 
 		if((g_fox == FOX_DEMO))
