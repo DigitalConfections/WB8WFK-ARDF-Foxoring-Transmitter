@@ -1,25 +1,27 @@
-/**********************************************************************************************
- * Copyright � 2017 Digital Confections LLC
+/*
+ *  MIT License
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in the
- * Software without restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the
- * following conditions:
+ *  Copyright (c) 2020 DigitalConfections
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
- * PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
- * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- **********************************************************************************************
- *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
+/*
  * linkbus.h - a simple serial inter-processor communication protocol.
  */
 
@@ -27,8 +29,6 @@
 #define LINKBUS_H_
 
 #include "defs.h"
-//#include "transmitter.h"
-//#include "si5351.h"
 
 #define LINKBUS_MAX_MSG_LENGTH 50
 #define LINKBUS_MIN_MSG_LENGTH 2    /* shortest message: GO */
@@ -42,7 +42,7 @@
 
 #define LINKBUS_MIN_TX_INTERVAL_MS 100
 
-#define FOSC 16000000    /* Clock Speed */
+#define FOSC 16000000   /* Clock Speed */
 #define BAUD 57600
 #define MYUBRR(b) (FOSC / 16 / (b) - 1)
 
@@ -90,21 +90,21 @@ typedef enum
 	MESSAGE_EMPTY = 0,
 
 	/*	DUAL-BAND TX MESSAGE FAMILY (FUNCTIONAL MESSAGING) */
-	MESSAGE_CLOCK_CAL = 'C' * 100 + 'A' * 10 + 'L', /* Set Jerry's clock calibration value */
+	MESSAGE_CLOCK_CAL = 'C' * 100 + 'A' * 10 + 'L',     /* Set Jerry's clock calibration value */
 	MESSAGE_FACTORY_RESET = 'F' * 100 + 'A' * 10 + 'C', /* Sets EEPROM back to defaults */
-	MESSAGE_OVERRIDE_DIP = 'D' *100 + 'I' * 10 + 'P', /* Override DIP switch settings using this value */
-	MESSAGE_LEDS = 'L' * 100 + 'E' * 10 + 'D',  /* Turn on or off LEDs - accepts 1 or 0 or ON or OFF */
-	MESSAGE_SYNC_ENABLE = 'S' * 100 + 'Y' * 10 + 'N',  /* Enable or disable transmitter syncing */
-	MESSAGE_TEMP = 'T' * 100 + 'E' * 10 + 'M',      /* Temperature  data */
-	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',        /* Sets amateur radio callsign text */
-	MESSAGE_GO = 'G' * 10 + 'O',					/* Synchronizes clock */
-	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D', /* Set Morse code speeds */
+	MESSAGE_OVERRIDE_DIP = 'D' * 100 + 'I' * 10 + 'P',  /* Override DIP switch settings using this value */
+	MESSAGE_LEDS = 'L' * 100 + 'E' * 10 + 'D',          /* Turn on or off LEDs - accepts 1 or 0 or ON or OFF */
+	MESSAGE_SYNC_ENABLE = 'S' * 100 + 'Y' * 10 + 'N',   /* Enable or disable transmitter syncing */
+	MESSAGE_TEMP = 'T' * 100 + 'E' * 10 + 'M',          /* Temperature  data */
+	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',            /* Sets amateur radio callsign text */
+	MESSAGE_GO = 'G' * 10 + 'O',                        /* Synchronizes clock */
+	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D',    /* Set Morse code speeds */
 
 	/* UTILITY MESSAGES */
-	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',		/* Processor reset */
-	MESSAGE_VERSION = 'V' * 100 + 'E' * 10 + + 'R',	/* S/W version number */
+	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',         /* Processor reset */
+	MESSAGE_VERSION = 'V' * 100 + 'E' * 10 + +'R',      /* S/W version number */
 
-	INVALID_MESSAGE = UINT16_MAX					/* This value must never overlap a valid message ID */
+	INVALID_MESSAGE = UINT16_MAX                        /* This value must never overlap a valid message ID */
 } LBMessageID;
 
 typedef enum

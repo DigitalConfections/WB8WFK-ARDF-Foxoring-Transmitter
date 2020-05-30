@@ -1,4 +1,27 @@
 /*
+ *  MIT License
+ *
+ *  Copyright (c) 2020 DigitalConfections
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
+/*
  * Microfox Arduino nano version. Converted from PIC C November 2019
  * Jerry Boyd WB8WFK
  * This controller will replace the Albuquerque VHF and HF microfox pic based controller
@@ -24,6 +47,7 @@
 
 
 #define MAX_PATTERN_TEXT_LENGTH 20
+#define TEMP_STRING_LENGTH (MAX_PATTERN_TEXT_LENGTH + 10)
 
 volatile int g_seconds          = 0;        /* Init timer to first second. Set in ISR checked by main. */
 volatile int g_minutes          = 1;        /* Init timer to cycle 1. */
@@ -93,7 +117,7 @@ static volatile uint8_t g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT
 static volatile uint8_t g_enable_LEDs;
 static volatile uint8_t g_enable_sync;
 
-static char g_tempStr[21] = { '\0' };
+static char g_tempStr[TEMP_STRING_LENGTH] = { '\0' };
 
 static volatile uint8_t g_start_override = FALSE;
 
@@ -101,7 +125,7 @@ static volatile uint8_t g_start_override = FALSE;
  * Function Prototypes
  */
 void handleLinkBusMsgs(void);
-void initializeEEPROMVars(void);
+BOOL initializeEEPROMVars(void);
 void saveAllEEPROM(void);
 float getTemp(void);
 uint16_t readADC();
@@ -212,7 +236,10 @@ void setUpTemp(void);
 
 	sei();                      /*allow interrupts. Arm and run */
 
-	initializeEEPROMVars();     /* Initialize variables stored in EEPROM */
+	while(initializeEEPROMVars())
+	{
+		;                       /* Initialize variables stored in EEPROM */
+	}
 	linkbus_init(BAUD);         /* Start the Link Bus serial comms */
 	setUpTemp();
 
@@ -846,9 +873,8 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					{
 						g_clock_calibration = c;
 						OCR1A = g_clock_calibration;
+						eeprom_update_word(&ee_clock_calibration, g_clock_calibration);
 					}
-
-					saveAllEEPROM();
 				}
 
 				sprintf(g_tempStr, "Cal=%u\n", g_clock_calibration);
@@ -860,16 +886,27 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			{
 				if(lb_buff->fields[FIELD1][0])
 				{
-					strcpy(g_messages_text[STATION_ID], " ");   /* Space before ID gets sent */
-					strcat(g_messages_text[STATION_ID], lb_buff->fields[FIELD1]);
+					strcpy(g_tempStr, " "); /* Space before ID gets sent */
+					strcat(g_tempStr, lb_buff->fields[FIELD1]);
 
 					if(lb_buff->fields[FIELD2][0])
 					{
-						strcat(g_messages_text[STATION_ID], " ");
-						strcat(g_messages_text[STATION_ID], lb_buff->fields[FIELD2]);
+						strcat(g_tempStr, " ");
+						strcat(g_tempStr, lb_buff->fields[FIELD2]);
 					}
 
-					saveAllEEPROM();
+					if(strlen(g_tempStr) <= MAX_PATTERN_TEXT_LENGTH)
+					{
+						uint8_t i;
+						strcpy(g_messages_text[STATION_ID], g_tempStr);
+
+						for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
+						{
+							eeprom_update_byte((uint8_t*)&ee_stationID_text[i], (uint8_t)g_messages_text[STATION_ID][i]);
+						}
+
+						eeprom_update_byte((uint8_t*)&ee_stationID_text[i], 0);
+					}
 				}
 
 				if(g_messages_text[STATION_ID][0])
@@ -946,8 +983,8 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					lb_send_string(g_tempStr, FALSE);
 				}
 
-				float temp = getTemp();
-				sprintf(g_tempStr, "Temp: %dC\n", (int)temp);
+				float temp = 10. * getTemp();
+				sprintf(g_tempStr, "Temp: %d.%dC\n", (int)temp / 10, (int)temp % 10);
 				lb_send_string(g_tempStr, FALSE);
 			}
 			break;
@@ -971,8 +1008,9 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 /*
  * Set non-volatile variables to their values stored in EEPROM
  */
-void initializeEEPROMVars()
+BOOL initializeEEPROMVars()
 {
+	BOOL flagNotSet = FALSE;
 	uint8_t i;
 
 	if(eeprom_read_byte(&ee_interface_eeprom_initialization_flag) == EEPROM_INITIALIZED_FLAG)
@@ -1006,6 +1044,7 @@ void initializeEEPROMVars()
 	}
 	else
 	{
+		flagNotSet = TRUE;
 		g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
 		g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
 		g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;
@@ -1019,6 +1058,8 @@ void initializeEEPROMVars()
 		saveAllEEPROM();
 		eeprom_write_byte(&ee_interface_eeprom_initialization_flag, EEPROM_INITIALIZED_FLAG);
 	}
+
+	return(flagNotSet);
 }
 
 /*
@@ -1027,11 +1068,16 @@ void initializeEEPROMVars()
 void saveAllEEPROM()
 {
 	uint8_t i;
+	BOOL initialize = TRUE;
 
 	eeprom_update_byte(&ee_id_codespeed, g_id_codespeed);
 	eeprom_update_byte(&ee_pattern_codespeed, g_pattern_codespeed);
 	eeprom_update_word(&ee_ID_time, g_ID_period_seconds);
-	eeprom_update_word(&ee_clock_calibration, g_clock_calibration);
+	uint16_t x = eeprom_read_word(&ee_clock_calibration);
+	if(x == 0xFFFF) /* Never overwrite a valid calibration value */
+	{
+		eeprom_update_word(&ee_clock_calibration, g_clock_calibration);
+	}
 	eeprom_update_word((uint16_t*)&ee_temp_calibration, (uint16_t)g_temp_calibration);
 	eeprom_update_byte(&ee_override_DIP_switches, g_override_DIP_switches);
 	eeprom_update_byte(&ee_enable_LEDs, g_enable_LEDs);
@@ -1039,10 +1085,22 @@ void saveAllEEPROM()
 
 	for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
 	{
-		eeprom_update_byte((uint8_t*)&ee_stationID_text[i], (uint8_t)g_messages_text[STATION_ID][i]);
+		if(eeprom_read_byte((uint8_t*)&ee_stationID_text) != 0xFF)
+		{
+			initialize = FALSE;
+			break;
+		}
 	}
 
-	eeprom_update_byte((uint8_t*)&ee_stationID_text[i], 0);
+	if(initialize)
+	{
+		for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
+		{
+			eeprom_update_byte((uint8_t*)&ee_stationID_text[i], (uint8_t)g_messages_text[STATION_ID][i]);
+		}
+
+		eeprom_update_byte((uint8_t*)&ee_stationID_text[i], 0);
+	}
 
 	for(i = 0; i < strlen(g_messages_text[PATTERN_TEXT]); i++)
 	{
