@@ -142,6 +142,11 @@ void setUpTemp(void);
 	void setup()
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 {
+	while(initializeEEPROMVars())
+	{
+		;                       /* Initialize variables stored in EEPROM */
+	}
+
 	cli();                                  /*stop interrupts for setup */
 
 	/* set pins as outputs */
@@ -236,10 +241,6 @@ void setUpTemp(void);
 
 	sei();                      /*allow interrupts. Arm and run */
 
-	while(initializeEEPROMVars())
-	{
-		;                       /* Initialize variables stored in EEPROM */
-	}
 	linkbus_init(BAUD);         /* Start the Link Bus serial comms */
 	setUpTemp();
 
@@ -928,7 +929,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					if(lb_buff->fields[FIELD2][0])
 					{
 						speed = atol(lb_buff->fields[FIELD2]);
-						g_id_codespeed = CLAMP(5, speed, 20);
+						g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM, speed, MAX_CODE_SPEED_WPM);
 
 						if(g_messages_text[STATION_ID][0])
 						{
@@ -943,7 +944,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					if(lb_buff->fields[FIELD2][0])
 					{
 						speed = atol(lb_buff->fields[FIELD2]);
-						g_pattern_codespeed = CLAMP(5, speed, 20);
+						g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM, speed, MAX_CODE_SPEED_WPM);
 						g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
 
 						saveAllEEPROM();
@@ -1015,8 +1016,8 @@ BOOL initializeEEPROMVars()
 
 	if(eeprom_read_byte(&ee_interface_eeprom_initialization_flag) == EEPROM_INITIALIZED_FLAG)
 	{
-		g_pattern_codespeed = eeprom_read_byte(&ee_pattern_codespeed);
-		g_id_codespeed = eeprom_read_byte(&ee_id_codespeed);
+		g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM, eeprom_read_byte(&ee_pattern_codespeed), MAX_CODE_SPEED_WPM);
+		g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM, eeprom_read_byte(&ee_id_codespeed), MAX_CODE_SPEED_WPM);
 		g_ID_period_seconds = eeprom_read_word(&ee_ID_time);
 		g_clock_calibration = eeprom_read_word(&ee_clock_calibration);
 		g_temp_calibration = (int16_t)eeprom_read_word((uint16_t*)&ee_temp_calibration);

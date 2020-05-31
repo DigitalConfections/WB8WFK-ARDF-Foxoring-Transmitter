@@ -52,8 +52,6 @@
 #define OUTPUT 0x1
 #endif
 
-#define bit_iz_set(sfr, bit) ((*(volatile uint8_t *)((uint16_t) &(sfr))) & (1 << bit))
-
 /* #define F_CPU 16000000UL / * gets declared in makefile * / */
 
 
@@ -105,6 +103,9 @@ FOX_DEMO,
 FOXORING,
 INVALID_FOX
 } FoxType;
+
+#define MAX_CODE_SPEED_WPM 20
+#define MIN_CODE_SPEED_WPM 5
 
 
 /*******************************************************/
