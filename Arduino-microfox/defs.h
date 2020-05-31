@@ -52,14 +52,12 @@
 #define OUTPUT 0x1
 #endif
 
-#define bit_iz_set(sfr, bit) ((*(volatile uint8_t *)((uint16_t) &(sfr))) & (1 << bit))
-
 /* #define F_CPU 16000000UL / * gets declared in makefile * / */
 
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.5"
+#define SW_REVISION "0.6"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -106,6 +104,9 @@ FOXORING,
 INVALID_FOX
 } FoxType;
 
+#define MAX_CODE_SPEED_WPM 20
+#define MIN_CODE_SPEED_WPM 5
+
 
 /*******************************************************/
 
@@ -115,7 +116,7 @@ INVALID_FOX
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xB0
+#define EEPROM_INITIALIZED_FLAG 0xB1
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
