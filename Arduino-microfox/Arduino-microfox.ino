@@ -147,7 +147,7 @@ void setUpTemp(void);
 		;                       /* Initialize variables stored in EEPROM */
 	}
 
-	cli();                                  /*stop interrupts for setup */
+	cli();                          /*stop interrupts for setup */
 
 	/* set pins as outputs */
 	pinMode(PIN_NANO_LED, OUTPUT);  /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
@@ -340,7 +340,7 @@ void setUpTemp(void);
  ************************************************************************/
 ISR(USART_RX_vect)
 {
-	static char textBuff[LINKBUS_MAX_MSG_FIELD_LENGTH];
+	static char textBuff[LINKBUS_MAX_COMMANDLINE_LENGTH];
 	static LinkbusRxBuffer* buff = NULL;
 	static uint8_t charIndex = 0;
 	static uint8_t field_index = 0;
@@ -366,7 +366,7 @@ ISR(USART_RX_vect)
 			rx_char = '\0';
 			ignoreCount--;
 		}
-		else if(rx_char == 0x1B)    /* ESC sequence start */
+		else if(rx_char == 0x1B)    /* Ignore ESC sequences */
 		{
 			rx_char = '\0';
 
@@ -375,9 +375,9 @@ ISR(USART_RX_vect)
 				rx_char = textBuff[charIndex];
 			}
 
-			ignoreCount = 2;    /* throw out the next two characters */
+			ignoreCount = 2;        /* throw out the next two characters */
 		}
-		if(rx_char == 0x0D)     /* Handle carriage return */
+		else if(rx_char == 0x0D)    /* Handle carriage return */
 		{
 			if(receiving_msg)
 			{
@@ -427,18 +427,31 @@ ISR(USART_RX_vect)
 					else if(field_len)
 					{
 						field_len--;
+						buff->fields[field_index - 1][field_len] = '\0';
+					}
+					else if(textBuff[charIndex] == ' ')
+					{
+						field_index--;
+						field_len = strlen(buff->fields[field_index]);
 					}
 					else
 					{
 						buff->fields[field_index][0] = '\0';
 						field_index--;
 					}
+
+					textBuff[charIndex] = '\0'; /* replace deleted char with null */
+
+					if(charIndex == 0)
+					{
+						receiving_msg = FALSE;
+					}
 				}
 				else
 				{
 					if(rx_char == ' ')
 					{
-						if(textBuff[charIndex - 1] == ' ')
+						if((textBuff[charIndex - 1] == ' ') || ((field_index + 1) >= LINKBUS_MAX_MSG_NUMBER_OF_FIELDS))
 						{
 							rx_char = '\0';
 						}
@@ -446,41 +459,55 @@ ISR(USART_RX_vect)
 						{
 							if(field_index > 0)
 							{
-								buff->fields[field_index - 1][field_len] = 0;
+								buff->fields[field_index - 1][field_len] = '\0';
 							}
 
 							field_index++;
 							field_len = 0;
+							charIndex = MIN(charIndex + 1, (LINKBUS_MAX_COMMANDLINE_LENGTH - 1));
 						}
 					}
-					else
+					else if(field_len < LINKBUS_MAX_MSG_FIELD_LENGTH)
 					{
 						if(field_index == 0)    /* message ID received */
 						{
 							msg_ID = msg_ID * 10 + rx_char;
+							field_len++;
 						}
 						else
 						{
 							buff->fields[field_index - 1][field_len++] = rx_char;
+							buff->fields[field_index - 1][field_len] = '\0';
 						}
-					}
 
-					charIndex = MIN(charIndex + 1, LINKBUS_MAX_MSG_FIELD_LENGTH);
+						charIndex = MIN(charIndex + 1, (LINKBUS_MAX_COMMANDLINE_LENGTH - 1));
+					}
+					else
+					{
+						rx_char = '\0';
+					}
 				}
 			}
 			else
 			{
-				if((rx_char == 0x7F) || (rx_char == ' '))   /* Handle backspace and Space */
+				if(rx_char == 0x7F) /* Handle Backspace */
+				{
+					if(msg_ID <= 0)
+					{
+						rx_char = '\0';
+					}
+
+					msg_ID = 0;
+				}
+				else if(rx_char == ' ') /* Handle Space */
 				{
 					rx_char = '\0';
 				}
-				else                                        /* start of new message */
+				else                    /* start of new message */
 				{
 					uint8_t i;
 					field_index = 0;
-					msg_ID = 0;
-
-					msg_ID = msg_ID * 10 + rx_char;
+					msg_ID = rx_char;
 
 					/* Empty the field buffers */
 					for(i = 0; i < LINKBUS_MAX_MSG_NUMBER_OF_FIELDS; i++)
@@ -489,7 +516,7 @@ ISR(USART_RX_vect)
 					}
 
 					receiving_msg = TRUE;
-					charIndex = MIN(charIndex + 1, LINKBUS_MAX_MSG_FIELD_LENGTH);
+					charIndex++;
 				}
 			}
 
