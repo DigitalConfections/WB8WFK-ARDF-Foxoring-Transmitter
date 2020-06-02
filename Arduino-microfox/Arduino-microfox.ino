@@ -49,18 +49,25 @@
 #define MAX_PATTERN_TEXT_LENGTH 20
 #define TEMP_STRING_LENGTH (MAX_PATTERN_TEXT_LENGTH + 10)
 
-volatile int g_seconds          = 0;        /* Init timer to first second. Set in ISR checked by main. */
-volatile int g_minutes          = 1;        /* Init timer to cycle 1. */
 volatile int32_t g_seconds_since_sync = 0;  /* Total elapsed time counter */
 FoxType g_fox                   = BEACON;   /* Sets Fox number not set by ISR. Set in startup and checked in main. */
 volatile int g_active           = 0;        /* Disable active. set and clear in ISR. Checked in main. */
 
 volatile int g_on_the_air       = 0;        /* Controls transmitter Morse activity */
 volatile int g_code_throttle    = 0;        /* Adjusts Morse code speed */
-const char g_morsePatterns[][6] = { "MO ", "MOE ", "MOI ", "MOS ", "MOH ", "MO5 ", "", "5" };
+const char g_morsePatterns[][6] = { "MO ", "MOE ", "MOI ", "MOS ", "MOH ", "MO5 ", "", "5", "S", "ME", "MI", "MS", "MH", "M5", "OE", "OI", "OS", "OH", "O5" };
 volatile BOOL g_callsign_sent = FALSE;
 
 volatile BOOL g_blinky_time = FALSE;
+
+volatile int g_on_air_interval = 0;
+volatile int g_fox_seconds_into_interval = 0;
+volatile int g_fox_counter = 1;
+volatile int g_number_of_foxes = 0;
+volatile BOOL g_fox_transition = FALSE;
+volatile int g_fox_id_offset = 0;
+volatile int g_id_interval = 0;
+volatile BOOL g_time_to_ID = FALSE;
 
 #ifndef COMPILE_FOR_ATMELSTUDIO7
 	FoxType& operator++ (FoxType & orig)
@@ -144,67 +151,35 @@ void setUpTemp(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                       /* Initialize variables stored in EEPROM */
+		;                                                                                   /* Initialize variables stored in EEPROM */
 	}
 
-	cli();                          /*stop interrupts for setup */
+	cli();                              /*stop interrupts for setup */
 
 	/* set pins as outputs */
-	pinMode(PIN_NANO_LED, OUTPUT);  /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
+	pinMode(PIN_NANO_LED, OUTPUT);      /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
 	digitalWrite(PIN_NANO_LED, OFF);
-	pinMode(PIN_NANO_KEY, OUTPUT);  /* This pin is used to control the KEY line to the transmittter only active on cycle. */
+	pinMode(PIN_NANO_KEY, OUTPUT);      /* This pin is used to control the KEY line to the transmittter only active on cycle. */
 	digitalWrite(PIN_NANO_KEY, OFF);
 
 /* set the pins that are inputs */
-	pinMode(PIN_NANO_SYNC, INPUT);  /* This pin is used as the sync line
-	                                 * NOTE: The original albq PIC controllers used the CPU reset line as the
-	                                 * sync line. We had issues with transmitters getting out of sync during transport.
-	                                 * later investigation found that ESD events during transport was resetting the
-	                                 * PIC. This code will read this I/O line for sync and after finding that the I/O line
-	                                 * has switched to the high state it never reads it again until a power cycle.
-	                                 * The Arduino reset line does not go off board. ESD event caused out of sync issue fixed. */
-	pinMode(PIN_NANO_DIP_0, INPUT); /* fox switch LSB */
-	pinMode(PIN_NANO_DIP_1, INPUT); /* fox switch middle bit */
-	pinMode(PIN_NANO_DIP_2, INPUT); /* fox switch MSB */
-
-/*
- * read the dip switches and compute the desired fox number
- * */
-
+	pinMode(PIN_NANO_SYNC, INPUT);      /* This pin is used as the sync line
+	                                     * NOTE: The original albq PIC controllers used the CPU reset line as the
+	                                     * sync line. We had issues with transmitters getting out of sync during transport.
+	                                     * later investigation found that ESD events during transport was resetting the
+	                                     * PIC. This code will read this I/O line for sync and after finding that the I/O line
+	                                     * has switched to the high state it never reads it again until a power cycle.
+	                                     * The Arduino reset line does not go off board. ESD event caused out of sync issue fixed. */
+	pinMode(PIN_NANO_DIP_0, INPUT);     /* fox switch LSB */
+	pinMode(PIN_NANO_DIP_1, INPUT);     /* fox switch middle bit */
+	pinMode(PIN_NANO_DIP_2, INPUT);     /* fox switch MSB */
 
 	digitalWrite(PIN_NANO_LED, OFF);    /* Turn off led sync switch is now open */
 
-/*
- * get ready set go
- * time to start fox operation
- *
- * The timer came from the below source and I modified it
- * for use with microfox. it is the 1 second core timer
- * this replaced the PIC timer as the hardware is different.
- * ******************************************************
- * timer interrupts
- * by Amanda Ghassaei
- * June 2012 */
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- */
-/*
- * Modifications to the time for microfox done by Jerry Boyd WB8WFK November 2019
- * Removed the unused timers we only use timer 1.
- *
- * timer setup for timer1,
- * For Arduino uno or any board with ATMEL 328/168.. diecimila, duemilanove, lilypad, nano, mini...
- * this code will enable arduino timer 1 interrupts.
- * timer1 will interrupt at 1Hz
- * master variables
- * set timer1 interrupt at 1Hz */
-	TCCR1A = 0; /* set entire TCCR1A register to 0 */
-	TCCR1B = 0; /* same for TCCR1B */
-	TCNT1 = 0;  /*initialize counter value to 0 */
+/* set timer1 interrupt at 1Hz */
+	TCCR1A = 0;                         /* set entire TCCR1A register to 0 */
+	TCCR1B = 0;                         /* same for TCCR1B */
+	TCNT1 = 0;                          /*initialize counter value to 0 */
 
 /* Set compare match register for 1hz increments
  ************************************************************
@@ -257,16 +232,11 @@ void setUpTemp(void);
 	lb_send_string(g_tempStr, TRUE);
 	lb_send_NewPrompt();
 
-/* I found this on the web
- * note Timer0 - An 8 bit timer used by Arduino functions delay(), millis() and micros().
- *      Timer1 - A 16 bit timer used by the Servo() library
- *      Timer2 - An 8 bit timer used by the Tone() library */
-
 	if(g_override_DIP_switches)
 	{
 		g_fox = (FoxType)g_override_DIP_switches;
 	}
-	else
+	else                                            /* Read DIP Switches */
 	{
 		if(digitalRead(PIN_NANO_DIP_0) == HIGH )    /*Lsb */
 		{
@@ -286,7 +256,7 @@ void setUpTemp(void);
  * we now look at the sync line and then reset the time counters
  * when the sync switch is released.
  * */
-	if(g_enable_sync && (g_fox != FOXORING) && (g_fox != BEACON) && (g_fox != FOX_DEMO))
+	if(g_enable_sync && (g_fox != FOXORING) && (g_fox != BEACON) && (g_fox != FOX_DEMO) && (g_fox != SPECTATOR))
 	{
 		lb_send_string((char*)"Waiting for sync.\n", TRUE);
 		lb_send_string((char*)"Type \"GO\"\n", TRUE);
@@ -309,11 +279,34 @@ void setUpTemp(void);
 	}
 
 	TCNT1 = 0;  /* Initialize 1-second counter value to 0 */
-	g_seconds = 0;
-	g_minutes = 0;
 	g_seconds_since_sync = 0;
+	g_fox_seconds_into_interval = 0;
 
 	g_start_override = TRUE;
+
+	if((g_fox == BEACON) || (g_fox == SPECTATOR))
+	{
+		g_on_air_interval = 600;
+		g_number_of_foxes = 1;
+		g_pattern_codespeed = 8;
+		g_id_interval = 600;
+	}
+	else if(((g_fox >= FOX_1) && (g_fox <= FOX_5)) || (g_fox == FOX_DEMO))
+	{
+		g_on_air_interval = 60;
+		g_number_of_foxes = 5;
+		g_fox_id_offset = 0;
+		g_pattern_codespeed = 8;
+		g_id_interval = 60;
+	}
+	else if((g_fox >= SPRINT_S1) && (g_fox <= SPRINT_F5))
+	{
+		g_on_air_interval = 12;
+		g_number_of_foxes = 5;
+		g_pattern_codespeed = g_fox <= SPRINT_S5 ? 10 : 15;
+		g_fox_id_offset = g_fox <= SPRINT_S5 ? SPRINT_S1 - 1 : SPRINT_F1 - 1;
+		g_id_interval = 600;
+	}
 
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 		while(1)
@@ -663,17 +656,30 @@ ISR( TIMER2_COMPB_vect )
  */
 ISR(TIMER1_COMPA_vect)      /*timer1 interrupt 1Hz */
 {
+	static int id_countdown = 0;
+
 	g_seconds_since_sync++; /* Total elapsed time counter */
-	g_seconds++;            /* Update seconds */
+	g_fox_seconds_into_interval++;
 
-	if(g_seconds > 59)
+	if(id_countdown)
 	{
-		g_seconds = 0;
-		g_minutes++;
+		id_countdown--;
+	}
 
-		if(g_minutes > 4)
+	if((g_seconds_since_sync % g_on_air_interval) == 0)
+	{
+		g_fox_counter++;
+		if(g_fox_counter > g_number_of_foxes)
 		{
-			g_minutes = 0;
+			g_fox_counter = 1;
+		}
+		g_fox_transition = TRUE;
+		g_fox_seconds_into_interval = 0;
+
+		if(!id_countdown)
+		{
+			id_countdown = g_id_interval;
+			g_time_to_ID = TRUE;
 		}
 	}
 }   /* end of Timer 1 ISR */
@@ -700,7 +706,7 @@ void loop()
 		/* Choose the appropriate Morse pattern to be sent */
 		if(g_fox == FOX_DEMO)
 		{
-			strcpy(g_messages_text[PATTERN_TEXT], g_morsePatterns[g_minutes + 1]);
+			strcpy(g_messages_text[PATTERN_TEXT], g_morsePatterns[g_fox_counter]);
 		}
 		else
 		{
@@ -708,16 +714,26 @@ void loop()
 		}
 
 		/* At the appropriate time set the pattern to be sent and start transmissions */
-		if((g_fox == FOX_DEMO) || (g_fox == BEACON) || (g_fox == FOXORING) || (g_fox == (g_minutes + 1)))
+		if((g_fox == FOX_DEMO) || (g_fox == BEACON) || (g_fox == FOXORING) || (g_fox == SPECTATOR) || (g_fox == (g_fox_counter + g_fox_id_offset)))
 		{
 			BOOL repeat = TRUE;
 			g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
 			makeMorse(g_messages_text[PATTERN_TEXT], &repeat, NULL);
-			time_for_id = 60 -  (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID], g_id_codespeed)) / 1000;
+
+			if(g_time_to_ID || (g_id_interval <= g_on_air_interval))
+			{
+				time_for_id = g_on_air_interval - (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID], g_id_codespeed)) / 1000;
+				g_time_to_ID = FALSE;
+			}
+			else
+			{
+				time_for_id = g_on_air_interval + 99;   /* prevent sending ID */
+			}
 
 			id_set = FALSE;
 			g_on_the_air = TRUE;
 			g_callsign_sent = FALSE;
+			g_fox_transition = FALSE;
 		}
 		else
 		{
@@ -736,7 +752,7 @@ void loop()
 	}
 	else
 	{
-		if(!id_set && (g_seconds == time_for_id))   /* Send the call sign at the right time */
+		if(!id_set && (g_fox_seconds_into_interval == time_for_id)) /* Send the call sign at the right time */
 		{
 			g_code_throttle = THROTTLE_VAL_FROM_WPM(g_id_codespeed);
 			BOOL repeat = FALSE;
@@ -744,29 +760,43 @@ void loop()
 			id_set = TRUE;
 			g_callsign_sent = FALSE;
 		}
-		else if(g_seconds == 30)    /* Speed up code after 30 seconds */
+		else if((g_fox >= SPRINT_S1) && (g_fox <= SPRINT_F5))
 		{
-			if((g_fox != BEACON) && (g_fox != FOXORING))
+			if(g_fox_transition)
 			{
-				g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed * 2);
+				g_fox_transition = FALSE;
+				g_on_the_air = FALSE;
+				proceed = TRUE;
 			}
 		}
 
+/*		else if(g_seconds == 30)    / * Speed up code after 30 seconds * /
+ *		{
+ *			if((g_fox != BEACON) && (g_fox != FOXORING))
+ *			{
+ *				g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed * 2);
+ *			}
+ *		} */
+
 		if((g_fox == FOX_DEMO))
 		{
-			if((g_callsign_sent) && (g_seconds == 0))   /* Ensure we've begun the next minute before proceeding */
+			if((g_callsign_sent) && g_fox_transition)   /* Ensure we've begun the next minute before proceeding */
 			{
 				proceed = TRUE;
 			}
 		}
-		else if((g_fox == BEACON) || (g_fox == FOXORING))   /* Proceed as soon as the callsign has been sent */
+		else if((g_fox == BEACON) || (g_fox == FOXORING) || (g_fox == SPECTATOR))   /* Proceed as soon as the callsign has been sent */
 		{
 			if(g_callsign_sent)
 			{
 				proceed = TRUE;
 			}
 		}
-		else if((g_fox != (g_minutes + 1)) && g_callsign_sent)  /* Turn off transmissions during minutes when this fox should be silent */
+		else if((g_fox >= SPRINT_S1) && (g_fox <= SPRINT_F5) && g_callsign_sent)
+		{
+			g_on_the_air = FALSE;
+		}
+		else if((g_fox != g_fox_counter) && g_callsign_sent)    /* Turn off transmissions during minutes when this fox should be silent */
 		{
 			g_on_the_air = FALSE;
 		}
@@ -801,17 +831,97 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 
 			case MESSAGE_OVERRIDE_DIP:
 			{
-				if(lb_buff->fields[FIELD1][0])
-				{
-					int d = atoi(lb_buff->fields[FIELD1]);
+				int c = (int)(lb_buff->fields[FIELD1][0]);
 
-					if((d >= BEACON) && (d < INVALID_FOX))
+				if(c)
+				{
+					if(c == 'B')
 					{
-						g_override_DIP_switches = d;
-						g_fox = (FoxType)d;
+						c = BEACON;
+					}
+					else if(c == 'D')
+					{
+						c = FOX_DEMO;
+					}
+					else if(c == 'F')
+					{
+						c = FOXORING;
+					}
+					else if(c == 'C')
+					{
+						char t = lb_buff->fields[FIELD2][0];
+						lb_buff->fields[FIELD2][1] = '\0';
+
+						if(t == 'B')
+						{
+							t = '0';
+						}
+
+						if(isdigit(t))
+						{
+							c = CLAMP(BEACON, atoi(lb_buff->fields[FIELD2]), FOX_5);
+						}
+					}
+					else if(c == 'S')
+					{
+						int x = 0;
+						char t = lb_buff->fields[FIELD2][0];
+						char u = lb_buff->fields[FIELD2][1];
+						lb_buff->fields[FIELD2][2] = '\0';
+
+						if(t == 'B')
+						{
+							x = BEACON;
+						}
+						if(t == 'F')
+						{
+							if((u > '0') && (u < '6'))
+							{
+								x = SPRINT_F1 + (u - '1');
+							}
+						}
+						else if(t == 'S')
+						{
+							if((u > '0') && (u < '6'))
+							{
+								x = SPRINT_S1 + (u - '1');
+							}
+							else
+							{
+								x = SPECTATOR;
+							}
+						}
+						else if(u == 'F')
+						{
+							if((t > '0') && (t < '6'))
+							{
+								x = SPRINT_F1 + (t - '1');
+							}
+						}
+						else if(u == 'S')
+						{
+							if((t > '0') && (t < '6'))
+							{
+								x = SPRINT_S1 + (t - '1');
+							}
+						}
+
+						if(x)
+						{
+							c = CLAMP(SPECTATOR, x, SPRINT_F5);
+						}
+					}
+					else
+					{
+						c = atoi(lb_buff->fields[FIELD1]);
 					}
 
-					saveAllEEPROM();
+					if((c >= BEACON) && (c < INVALID_FOX))
+					{
+						g_override_DIP_switches = c;
+						g_fox = (FoxType)c;
+						saveAllEEPROM();
+					}
 				}
 
 				sprintf(g_tempStr, "DIP=%u\n", g_override_DIP_switches);
@@ -966,22 +1076,25 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						saveAllEEPROM();
 					}
 				}
-				else if(lb_buff->fields[FIELD1][0] == 'P')
-				{
-					if(lb_buff->fields[FIELD2][0])
-					{
-						speed = atol(lb_buff->fields[FIELD2]);
-						g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM, speed, MAX_CODE_SPEED_WPM);
-						g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
-
-						saveAllEEPROM();
-					}
-				}
-
+				/*
+				 *  else if(lb_buff->fields[FIELD1][0] == 'P')
+				 *  {
+				 *       if(lb_buff->fields[FIELD2][0])
+				 *       {
+				 *               speed = atol(lb_buff->fields[FIELD2]);
+				 *               g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM, speed, MAX_CODE_SPEED_WPM);
+				 *               g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
+				 *
+				 *               saveAllEEPROM();
+				 *       }
+				 *  }
+				 */
 				sprintf(g_tempStr, "ID:  %d wpm\n", g_id_codespeed);
 				lb_send_string(g_tempStr, FALSE);
-				sprintf(g_tempStr, "Pat: %d wpm\n", g_pattern_codespeed);
-				lb_send_string(g_tempStr, FALSE);
+				/*
+				 *  sprintf(g_tempStr, "Pat: %d wpm\n", g_pattern_codespeed);
+				 *  lb_send_string(g_tempStr, FALSE);
+				 */
 			}
 			break;
 
