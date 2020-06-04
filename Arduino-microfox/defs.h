@@ -57,7 +57,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.9"
+#define SW_REVISION "0.9.1"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -91,6 +91,7 @@ typedef unsigned char uint8_t;
 #define PIN_NANO_DIP_0 4
 #define PIN_NANO_DIP_1 5
 #define PIN_NANO_DIP_2 6
+#define PIN_AUDIO_OUT 9
 
 typedef enum {
 BEACON = 0,
