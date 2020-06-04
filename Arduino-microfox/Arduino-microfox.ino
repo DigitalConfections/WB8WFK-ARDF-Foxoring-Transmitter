@@ -171,6 +171,8 @@ void playStartingTone(uint8_t toneFreq);
 	digitalWrite(PIN_NANO_LED, OFF);
 	pinMode(PIN_NANO_KEY, OUTPUT);      /* This pin is used to control the KEY line to the transmittter only active on cycle. */
 	digitalWrite(PIN_NANO_KEY, OFF);
+	pinMode(PIN_AUDIO_OUT, OUTPUT);
+	digitalWrite(PIN_AUDIO_OUT, OFF);
 
 /* set the pins that are inputs */
 	pinMode(PIN_NANO_SYNC, INPUT);      /* This pin is used as the sync line
@@ -227,11 +229,12 @@ void playStartingTone(uint8_t toneFreq);
 	/* Timer 0 is for audio Start tone generation and control
 	 * Note: Do not use millis() or DELAY() after TIMER0 has been reconfigured here! */
 	TCCR0A = 0x00;
-	TCCR0A = (1 << COM0A0) | (1 << WGM01);  /* Set toggle OC0A, CTC mode */
+//	TCCR0A = (1 << COM0A0) | (1 << WGM01);  /* Set toggle OC0A, CTC mode */
+	TCCR0A = (1 << WGM01);  /* Set CTC mode */
 	TCCR0B = 0x00;
 	TCCR0B = (1 << CS02);                   /* Prescale 256 */
-	pinMode(PIN_NANO_DIP_2, OUTPUT);        /* PD6 set to output */
-	pinMode(7, OUTPUT);
+//	pinMode(PIN_NANO_DIP_2, OUTPUT);        /* PD6 set to output */
+//	pinMode(7, OUTPUT);
 	OCR0A = DEFAULT_TONE_FREQUENCY;
 	TIMSK0 = 0x00;
 	TIMSK0 |= (1 << OCIE0A);
@@ -808,11 +811,11 @@ SIGNAL(TIMER0_COMPA_vect)
 	{
 		if(toggle)
 		{
-			digitalWrite(7,ON);
+			digitalWrite(PIN_AUDIO_OUT,ON);
 		}
 		else
 		{
-			digitalWrite(7,OFF);
+			digitalWrite(PIN_AUDIO_OUT,OFF);
 		}
 
 		TCCR0A |= (1 << COM0A0);
@@ -820,8 +823,8 @@ SIGNAL(TIMER0_COMPA_vect)
 	else
 	{
 		TCCR0A = (1 << WGM01);
-		digitalWrite(7,OFF);
-		digitalWrite(6,OFF);
+		digitalWrite(PIN_AUDIO_OUT,OFF);
+//		digitalWrite(6,OFF);
 	}
 }
 
