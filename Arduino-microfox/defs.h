@@ -57,7 +57,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.7"
+#define SW_REVISION "0.9"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -112,6 +112,7 @@ SPRINT_F2,
 SPRINT_F3,
 SPRINT_F4,
 SPRINT_F5,
+SPRINT_DEMO,
 INVALID_FOX
 } FoxType;
 
@@ -127,7 +128,7 @@ INVALID_FOX
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xB1
+#define EEPROM_INITIALIZED_FLAG 0xB3
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
@@ -147,6 +148,7 @@ INVALID_FOX
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
 #define EEPROM_ENABLE_LEDS_DEFAULT 1
 #define EEPROM_ENABLE_SYNC_DEFAULT 1
+#define EEPROM_ENABLE_STARTTIMER_DEFAULT 1
 
 #define EEPROM_SI5351_CALIBRATION_DEFAULT 0x00
 #define EEPROM_CLK0_OUT_DEFAULT 133000000
@@ -204,56 +206,23 @@ INVALID_FOX
 #define MAX_UINT16 65535
 #define MAX_INT16 32767
 
-typedef enum
-{
-	DOWN = -1,
-	NOCHANGE = 0,
-	UP = 1,
-	SETTOVALUE
-} IncrType;
-
-typedef enum
-{
-	ANT_CONNECTION_UNDETERMINED,
-	ANT_ALL_DISCONNECTED,
-	ANT_2M_CONNECTED,
-	ANT_80M_CONNECTED,
-	ANT_2M_AND_80M_CONNECTED
-} AntConnType;
-
-typedef enum
-{
-	POWER_UP,
-	POWER_SLEEP
-} InitActionType;
-
-#define QUAD_MASK 0xC0
-#define QUAD_A 7
-#define QUAD_B 6
-
-#define MAX_TONE_VOLUME_SETTING 15
-#define TONE_POT_VAL(x) (255 - (x*17))
-#define MAX_MAIN_VOLUME_SETTING 15
-
-#define POWER_OFF_DELAY 5000
-#define BACKLIGHT_OFF_DELAY 5000
-#define BACKLIGHT_ALWAYS_ON 65535
-#define HEADPHONE_REMOVED_DELAY 100
-#define POWERUP_LOW_VOLTAGE_DELAY 900   /* A short delay at first power up before declaring battery is too low */
-#define LOW_VOLTAGE_DELAY 9000          /* A longer delay if the receiver has been running and the battery starts to sag */
-#define CURSOR_EXPIRATION_DELAY 5000    /* Keep cursor displayed this long without user action */
-#define LONG_PRESS_TICK_COUNT 1200      /* Press a button for this many ticks in order to access a long-press function */
-
-#define SEND_ID_DELAY 4100
-
 /* Periodic TIMER2 interrupt timing definitions */
 #define TIMER2_57HZ 10
 #define TIMER2_20HZ 49
 #define TIMER2_5_8HZ 100
 #define TIMER2_0_5HZ 1000
+#define TIMER2_SECONDS_3 4283
+#define TIMER2_SECONDS_2 2855
+#define TIMER2_SECONDS_1 1428
 
 #define BLINK_SHORT 100
 #define BLINK_LONG 500
+
+/* TIMER0 tone frequencies */
+#define DEFAULT_TONE_FREQUENCY 0x2F
+#define TONE_600Hz 0x1F
+#define TONE_500Hz 0x3F
+#define TONE_400Hz 0x4F
 
 /******************************************************
  * UI Hardware-related definitions */
@@ -266,14 +235,6 @@ typedef enum
 } TextFormat;
 
 #define DISPLAY_WIDTH_STRING_SIZE (NUMBER_OF_LCD_COLS + 1)
-
-typedef enum batteryType
-{
-	BATTERY_9V,
-	BATTERY_4r2V,
-	BATTERY_EXTERNAL,
-	BATTERY_UNKNOWN
-} BatteryType;
 
 typedef enum
 {
