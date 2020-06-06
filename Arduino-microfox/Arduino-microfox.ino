@@ -45,6 +45,9 @@
 #include "ardooweeno.h"
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 
+#ifdef USE_WATCHDOG
+#include <avr/wdt.h>
+#endif
 
 #define MAX_PATTERN_TEXT_LENGTH 20
 #define TEMP_STRING_LENGTH (MAX_PATTERN_TEXT_LENGTH + 10)
@@ -145,6 +148,7 @@ uint16_t readADC();
 void setUpTemp(void);
 void sendMorseTone(BOOL onOff);
 void playStartingTone(uint8_t toneFreq);
+void wdt_init(WDReset resetType);
 
 #ifndef USE_WATCHDOG
 	void (* resetFunc)(void) = 0;   /*declare reset function @ address 0 */
@@ -159,17 +163,17 @@ void playStartingTone(uint8_t toneFreq);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
 
-	cli();                              /*stop interrupts for setup */
+	cli();                          /*stop interrupts for setup */
 
 	/* set pins as outputs */
-	pinMode(PIN_NANO_LED, OUTPUT);      /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
+	pinMode(PIN_NANO_LED, OUTPUT);  /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
 	digitalWrite(PIN_NANO_LED, OFF);
-	pinMode(PIN_NANO_KEY, OUTPUT);      /* This pin is used to control the KEY line to the transmittter only active on cycle. */
+	pinMode(PIN_NANO_KEY, OUTPUT);  /* This pin is used to control the KEY line to the transmittter only active on cycle. */
 	digitalWrite(PIN_NANO_KEY, OFF);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
@@ -224,17 +228,15 @@ void playStartingTone(uint8_t toneFreq);
 	ASSR &= ~(1 << AS2);
 	/* Reset Timer/Counter2 Interrupt Mask Register */
 	TIMSK2 = 0;
-	TIMSK2 |= (1 << OCIE2B);                /* Output Compare Match B Interrupt Enable */
+	TIMSK2 |= (1 << OCIE2B);    /* Output Compare Match B Interrupt Enable */
 
 	/* Timer 0 is for audio Start tone generation and control
 	 * Note: Do not use millis() or DELAY() after TIMER0 has been reconfigured here! */
 	TCCR0A = 0x00;
-//	TCCR0A = (1 << COM0A0) | (1 << WGM01);  /* Set toggle OC0A, CTC mode */
-	TCCR0A = (1 << WGM01);  /* Set CTC mode */
+/*	TCCR0A |= (1 << COM0A0) | (1 << WGM01);  / * Set toggle OC0A, CTC mode * / */
+	TCCR0A |= (1 << WGM01); /* Set CTC mode */
 	TCCR0B = 0x00;
-	TCCR0B = (1 << CS02);                   /* Prescale 256 */
-//	pinMode(PIN_NANO_DIP_2, OUTPUT);        /* PD6 set to output */
-//	pinMode(7, OUTPUT);
+	TCCR0B |= (1 << CS02);  /* Prescale 256 */
 	OCR0A = DEFAULT_TONE_FREQUENCY;
 	TIMSK0 = 0x00;
 	TIMSK0 |= (1 << OCIE0A);
@@ -337,6 +339,8 @@ void playStartingTone(uint8_t toneFreq);
 		g_startclock_interval = 120;
 	}
 
+	wdt_init(WD_HW_RESETS);
+
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 		while(1)
 		{
@@ -344,6 +348,78 @@ void playStartingTone(uint8_t toneFreq);
 		}
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 }/*end setup */
+
+void __attribute__((optimize("O1"))) wdt_init(WDReset resetType)
+{
+	wdt_reset();
+
+	if(MCUSR & (1 << WDRF))     /* If a reset was caused by the Watchdog Timer perform any special operations */
+	{
+		MCUSR &= (1 << WDRF);   /* Clear the WDT reset flag */
+	}
+
+	if(resetType == WD_DISABLE)
+	{
+		/* Clear WDRF in MCUSR */
+		MCUSR &= ~(1 << WDRF);
+		/* Write logical one to WDCE and WDE */
+		/* Keep old prescaler setting to prevent unintentional
+		 *  time-out */
+		WDTCSR |= (1 << WDCE) | (1 << WDE);
+		/* Turn off WDT */
+		WDTCSR = 0x00;
+	}
+	else
+	{
+		if(resetType == WD_HW_RESETS)
+		{
+			WDTCSR |= (1 << WDCE) | (1 << WDE);
+			WDTCSR = (1 << WDP3) | (1 << WDIE) | (1 << WDE);    /* Enable WD interrupt every 4 seconds, and hardware resets */
+			/*	WDTCSR = (1 << WDP3) | (1 << WDP0) | (1 << WDIE) | (1 << WDE); // Enable WD interrupt every 8 seconds, and hardware resets */
+		}
+		else if(resetType == WD_SW_RESETS)
+		{
+			WDTCSR |= (1 << WDCE) | (1 << WDE);
+			/*	WDTCSR = (1 << WDP3) | (1 << WDIE); // Enable WD interrupt every 4 seconds (no HW reset)
+			 *	WDTCSR = (1 << WDP3) | (1 << WDP0)  | (1 << WDIE); // Enable WD interrupt every 8 seconds (no HW reset) */
+			WDTCSR = (1 << WDP1) | (1 << WDP2)  | (1 << WDIE);  /* Enable WD interrupt every 1 seconds (no HW reset) */
+		}
+		else
+		{
+			WDTCSR |= (1 << WDCE) | (1 << WDE);
+			WDTCSR = (1 << WDIE) | (1 << WDE);  /* Enable WD interrupt in 16ms, and hardware reset */
+		}
+	}
+}
+
+
+/***********************************************************************
+ * Watchdog Timeout ISR
+ *
+ * The Watchdog timer helps prevent lockups due to hardware problems.
+ * It is especially helpful in this application for preventing I2C bus
+ * errors from locking up the foreground process.
+ ************************************************************************/
+ISR(WDT_vect)
+{
+	static uint8_t limit = 10;
+
+/*	g_i2c_not_timed_out = FALSE;    / * unstick I2C * / */
+
+	/* Don't allow an unlimited number of WD interrupts to occur without enabling
+	 * hardware resets. But a limited number might be required during hardware
+	 * initialization. */
+/*	if(!g_enableHardwareWDResets && limit)
+ *	{
+ *		WDTCSR |= (1 << WDIE);  / * this prevents hardware resets from occurring * /
+ *	} */
+
+	if(limit)
+	{
+		limit--;
+/*		g_last_error_code = ERROR_CODE_WD_TIMEOUT; */
+	}
+}
 
 
 /***********************************************************************
@@ -824,7 +900,7 @@ SIGNAL(TIMER0_COMPA_vect)
 	{
 		TCCR0A = (1 << WGM01);
 		digitalWrite(PIN_AUDIO_OUT,OFF);
-//		digitalWrite(6,OFF);
+/*		digitalWrite(6,OFF); */
 	}
 }
 
@@ -838,6 +914,11 @@ void loop()
 	static int time_for_id = 99;
 	static BOOL id_set = TRUE;
 	static BOOL proceed = FALSE;
+
+	/**************************************
+	* The watchdog must be petted periodically to keep it from barking
+	**************************************/
+	cli(); wdt_reset(); /* HW watchdog */ sei();
 
 	handleLinkBusMsgs();
 

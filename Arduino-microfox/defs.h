@@ -57,7 +57,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.9.1"
+#define SW_REVISION "0.10"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -119,6 +119,16 @@ INVALID_FOX
 
 #define MAX_CODE_SPEED_WPM 20
 #define MIN_CODE_SPEED_WPM 5
+
+#define USE_WATCHDOG
+
+typedef enum
+{
+	WD_SW_RESETS,
+	WD_HW_RESETS,
+	WD_FORCE_RESET,
+	WD_DISABLE
+} WDReset;
 
 
 /*******************************************************/
