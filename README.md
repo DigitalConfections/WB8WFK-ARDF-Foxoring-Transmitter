@@ -15,7 +15,7 @@
 <b>> DIP [val]</b>  <= <i>* Sets the competition format, overriding the DIP switch settings<br>
 <b>> DIP</b>  <= <i>Displays the competition format setting<br>
 <b>> FAC</b>  <= <i>Sets saved EEPROM values to their original defaults</i><br>
-<b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the synch button</i><br>
+<b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the sync button</i><br>
 <b>> ID [string]</b>  <= <i>* Sets the callsign that gets sent</i><br>
 <b>> ID</b>  <= <i>Displays the saved callsign setting</i><br>
 <b>> LED [on|off]</b>  <= <i>* Turns on/off LED pin</i><br>
@@ -36,9 +36,9 @@
 <pre><p><b>PB1 - Pin 9  (Output)</b> <= Audio Out GND=No-tone<br>
 <b>PB5 - Pin 13 (Output)</b> <= LED On=+V<br>
 <b>PD2 - Pin 2  (Output)</b> <= Key/PTT On=+V<br>
-<b>PD3 - Pin 3  (Input)</b>  <= Synchronize<br>
-<b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0<br>
-<b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1<br>
-<b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2</p></pre>
+<b>PD3 - Pin 3  (Input)</b>  <= Synchronize START=Gnd<br>
+<b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0 (pulls down)<br>
+<b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1 (pulls down)<br>
+<b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2 (pulls down)</p></pre>
 <p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
 
