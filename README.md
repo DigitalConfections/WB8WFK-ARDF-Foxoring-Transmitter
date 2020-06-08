@@ -24,7 +24,7 @@
 <p><b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br>
 <p><b>> STA</b>  <= <i>Displays the starting tones setting</i><br>
 <p><b>> SYN [on|off]</b>  <= <i>* Turns on/off synchronization using sync button or "GO" command</i><br>
-<p><b>> SYN [on|off]</b>  <= <i>Displays the synchronization swtting</i><br>
+<p><b>> SYN</b>  <= <i>Displays the synchronization setting</i><br>
 <p><b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br>
 <p><b>> VER</b>  <= <i>Displays the software version number</i><br>
 <p/></pre>
