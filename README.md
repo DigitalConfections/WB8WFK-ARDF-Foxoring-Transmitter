@@ -8,17 +8,23 @@
 <h3>Serial Commands</h3>
 <p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive recognized the following commands.<p>
 
-<pre><p><b>> CAL [num]</b> <= <i>*Sets the clock calibration for precise timing</i><br>
+<pre><p><b>> CAL [num]</b> <= <i>* Sets the clock calibration for precise timing</i><br>
 <p><b>> CAL</b>  <= <i>Displays the clock calibration setting</i><br>
-<p><b>> DIP [val]</b>  <= <i>*Sets the competition format, overriding the DIP switch settings<br>
+<p><b>> DIP [val]</b>  <= <i>* Sets the competition format, overriding the DIP switch settings<br>
+<p><b>> DIP</b>  <= <i>Displays the competition format setting<br>
 <p><b>> FAC</b>  <= <i>Sets saved EEPROM values to their original defaults</i><br>
 <p><b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the synch button</i><br>
 <p><b>> ID [string]</b>  <= <i>* Sets the callsign that gets sent</i><br>
+<p><b>> ID</b>  <= <i>Displays the saved callsign setting</i><br>
 <p><b>> LED [on|off></b> <= <i>*Turns on/off LED pin</i><br>
+<p><b>> LED</b> <= <i>Displays the LED pin setting</i><br>
 <p><b>> RST</b>  <= <i>Resets the processor</i><br>
 <p><b>> SPD ID [num]</b>  <= <i>* Sets the ID code speed in WPM<br>
+<p><b>> SPD</b>  <= <i>Displays the ID code speed setting<br>
 <p><b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br>
+<p><b>> STA</b>  <= <i>Displays the starting tones setting</i><br>
 <p><b>> SYN [on|off]</b>  <= <i>* Turns on/off synchronization using sync button or "GO" command</i><br>
+<p><b>> SYN [on|off]</b>  <= <i>Displays the synchronization swtting</i><br>
 <p><b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br>
 <p><b>> VER</b>  <= <i>Displays the software version number</i><br>
 <p/></pre>
