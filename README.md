@@ -5,5 +5,22 @@
 
 <p>The controller includes an output pin for controlling a transmitter for sending Morse code characters (high = key down; low = key up) and a separate pin that sends the Morse code as audio tones that can be used to drive a speaker. The controller can also provide a sequence of starting-tones prompting competitors to begin a competition, and can thus serve as an electronic starting "gun" for use in ARDF events.</p>
 
+<h3>Serial Commands</h3>
+<p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive recognized the following commands.<p>
+  
+  <p>	CAL <num>\n
+  FAC\n
+  DIP\n
+  LED\n
+  SYN\n
+  TEM\n
+  ID\n
+  GO\n
+  RST\n
+  SPD\n
+  STA\n
+  VER\n
+  <p/>
+
 <p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
 
