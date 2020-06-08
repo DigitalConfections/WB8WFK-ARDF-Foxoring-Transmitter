@@ -33,12 +33,12 @@
   <p>* These values get stored to EEPROM and are retained between power cycles. </p>
 
 <h3>Pinout</h3>
-<pre><p><b>PB1 - Pin 9  (Output)</b> <= Audio Out GND=No-tone<br>
+<pre><p><b>PB1 - Pin 9  (Output)</b> <= Audio Out (=Gnd when no tone)<br>
 <b>PB5 - Pin 13 (Output)</b> <= LED On=+V<br>
 <b>PD2 - Pin 2  (Output)</b> <= Key/PTT On=+V<br>
-<b>PD3 - Pin 3  (Input)</b>  <= Synchronize START=Gnd<br>
-<b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0 (pulls down)<br>
-<b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1 (pulls down)<br>
-<b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2 (pulls down)</p></pre>
+<b>PD3 - Pin 3  (Input)</b>  <= Synchronize (mom. switch to Gnd)<br>
+<b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0 (switch to Gnd)<br>
+<b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1 (switch to Gnd)<br>
+<b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2 (switch to Gnd)</p></pre>
 <p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
 
