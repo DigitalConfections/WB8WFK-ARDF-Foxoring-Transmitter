@@ -16,7 +16,7 @@
 <p><b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the synch button</i><br>
 <p><b>> ID [string]</b>  <= <i>* Sets the callsign that gets sent</i><br>
 <p><b>> ID</b>  <= <i>Displays the saved callsign setting</i><br>
-<p><b>> LED [on|off></b> <= <i>*Turns on/off LED pin</i><br>
+<p><b>> LED [on|off]</b> <= <i>* Turns on/off LED pin</i><br>
 <p><b>> LED</b> <= <i>Displays the LED pin setting</i><br>
 <p><b>> RST</b>  <= <i>Resets the processor</i><br>
 <p><b>> SPD ID [num]</b>  <= <i>* Sets the ID code speed in WPM<br>
