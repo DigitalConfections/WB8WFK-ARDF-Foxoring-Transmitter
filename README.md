@@ -8,13 +8,13 @@
 <h3>Serial Commands</h3>
 <p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive recognized the following commands.<p>
   
-<p>	 CAL [num] <it>*Sets the clock calibration for precise timing</it><br>
-<p>  CAL <it>Displays the clock calibration setting</it><br>
-<p>  FAC <it>Sets saved EEPROM values to their original defaults</it><br>
-<p>  DIP<br>
-  LED<br>
-  SYN<br>
-  TEM<br>
+<p>	 CAL [num] <t>*Sets the clock calibration for precise timing</i><br>
+<p>  CAL <i>Displays the clock calibration setting</i><br>
+<p>  FAC <i>Sets saved EEPROM values to their original defaults</i><br>
+<p>  DIP <i>*Sets the competition format, overriding the DIP switch settings<br>
+<p>  LED [on|off] <i>*Turns on/off LED pin</i><br>
+<p>  SYN [on|off] <i>* Turns on/off synchronization using sync button or "GO" command</i>><br>
+<p>  TEM <i>Displays the processor's temperature in C</i><br>
   ID<br>
   GO<br>
   RST<br>
