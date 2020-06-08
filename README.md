@@ -8,18 +8,18 @@
 <h3>Serial Commands</h3>
 <p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive recognized the following commands.<p>
   
-  <p>	CAL <num>\n
-  FAC\n
-  DIP\n
-  LED\n
-  SYN\n
-  TEM\n
-  ID\n
-  GO\n
-  RST\n
-  SPD\n
-  STA\n
-  VER\n
+  <p>	CAL <num><br>
+  FAC<br>
+  DIP<br>
+  LED<br>
+  SYN<br>
+  TEM<br>
+  ID<br>
+  GO<br>
+  RST<br>
+  SPD<br>
+  STA<br>
+  VER<br>
   <p/>
 
 <p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
