@@ -10,37 +10,35 @@
 <h3>Serial Commands</h3>
 <p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive recognized the following commands.<p>
 
-<pre><p><b>> CAL [num]</b>  <= <i>* Sets the clock calibration for precise timing</i><br>
-<p><b>> CAL</b>  <= <i>Displays the clock calibration setting</i><br>
-<p><b>> DIP [val]</b>  <= <i>* Sets the competition format, overriding the DIP switch settings<br>
-<p><b>> DIP</b>  <= <i>Displays the competition format setting<br>
-<p><b>> FAC</b>  <= <i>Sets saved EEPROM values to their original defaults</i><br>
-<p><b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the synch button</i><br>
-<p><b>> ID [string]</b>  <= <i>* Sets the callsign that gets sent</i><br>
-<p><b>> ID</b>  <= <i>Displays the saved callsign setting</i><br>
-<p><b>> LED [on|off]</b>  <= <i>* Turns on/off LED pin</i><br>
-<p><b>> LED</b>  <= <i>Displays the LED pin setting</i><br>
-<p><b>> RST</b>  <= <i>Resets the processor</i><br>
-<p><b>> SPD ID [num]</b>  <= <i>* Sets the ID code speed in WPM<br>
-<p><b>> SPD</b>  <= <i>Displays the ID code speed setting<br>
-<p><b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br>
-<p><b>> STA</b>  <= <i>Displays the starting tones setting</i><br>
-<p><b>> SYN [on|off]</b>  <= <i>* Turns on/off synchronization using sync button or "GO" command</i><br>
-<p><b>> SYN</b>  <= <i>Displays the synchronization setting</i><br>
-<p><b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br>
-<p><b>> VER</b>  <= <i>Displays the software version number</i><br>
-<p/></pre>
+<pre><p><b>> CAL [num]</b>  <= <i>* Sets the clock calibration for precise timing</i><br></p>
+<p><b>> CAL</b>  <= <i>Displays the clock calibration setting</i><br></p>
+<p><b>> DIP [val]</b>  <= <i>* Sets the competition format, overriding the DIP switch settings<br></p>
+<p><b>> DIP</b>  <= <i>Displays the competition format setting<br></p>
+<p><b>> FAC</b>  <= <i>Sets saved EEPROM values to their original defaults</i><br></p>
+<p><b>> GO</b>  <= <i>Starts operation from zero seconds, equivalent to pressing the synch button</i><br></p>
+<p><b>> ID [string]</b>  <= <i>* Sets the callsign that gets sent</i><br></p>
+<p><b>> ID</b>  <= <i>Displays the saved callsign setting</i><br></p>
+<p><b>> LED [on|off]</b>  <= <i>* Turns on/off LED pin</i><br></p>
+<p><b>> LED</b>  <= <i>Displays the LED pin setting</i><br></p>
+<p><b>> RST</b>  <= <i>Resets the processor</i><br></p>
+<p><b>> SPD ID [num]</b>  <= <i>* Sets the ID code speed in WPM<br></p>
+<p><b>> SPD</b>  <= <i>Displays the ID code speed setting<br></p>
+<p><b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br></p>
+<p><b>> STA</b>  <= <i>Displays the starting tones setting</i><br></p>
+<p><b>> SYN [on|off]</b>  <= <i>* Turns on/off synchronization using sync button or "GO" command</i><br></p>
+<p><b>> SYN</b>  <= <i>Displays the synchronization setting</i><br></p>
+<p><b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br></p>
+<p><b>> VER</b>  <= <i>Displays the software version number</i><br></p></pre>
   
   <p>* These values get stored to EEPROM and are retained between power cycles. </p>
 
 <h3>Pinout<h3>
-  <pre><p><b>PB1 - Pin 9  (Output)</b> <= Audio Out GND=No-tone
-  <pre><p><b>PB5 - Pin 13 (Output)</b> <= LED On=+V
-  <pre><p><b>PD2 - Pin 2  (Output)</b> <= Key/PTT On=+V
-  <pre><p><b>PD3 - Pin 3  (Input)</b>  <= Synchronize
-  <pre><p><b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0
-  <pre><p><b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1
-  <pre><p><b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2
-</pre>
+  <pre><p><b>PB1 - Pin 9  (Output)</b> <= Audio Out GND=No-tone</p>
+  <p><b>PB5 - Pin 13 (Output)</b> <= LED On=+V</p>
+  <p><b>PD2 - Pin 2  (Output)</b> <= Key/PTT On=+V</p>
+  <p><b>PD3 - Pin 3  (Input)</b>  <= Synchronize</p>
+  <p><b>PD4 - Pin 4  (Input)</b> <= DIP Switch Bit 0</p>
+  <p><b>PD5 - Pin 5  (Input)</b> <= DIP Switch Bit 1</p>
+  <p><b>PD6 - Pin 6  (Input)</b> <= DIP Switch Bit 2</p></pre>
 <p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
 
