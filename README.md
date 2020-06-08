@@ -1,6 +1,8 @@
 <h2>WB8WFK ARDF Foxoring Transmitter</h2>
 <p>This is a simple, inexpensive, transmitter controller for conducting ARDF Foxoring competitions and for demonstrating ARDF principles. The software project is an Arduino script that builds for and runs on most Arduino-like products, including <a href="https://www.adafruit.com/product/2590">AdaFruit's Metro Mini 328</a>, or <a href="https://www.sparkfun.com/products/11113">SparkFun's Arduino Pro Mini 328</a>, and many more.</p>
 
+<p>The software is a proper Arduino script that will open and build without warnings or errors in Arduino IDE version 1.8.12 and later. The Arduino IDE can also be used to program a device that holds a compatible bootloader. Most Arduino products ship with a bootloader pre-installed.</p>
+
 <p>After being programmed, the controller is configured via a serial port on the microprocessor. An Arduino board that includes a USB-to-Serial converter will allow you to configure the controller with a simple USB cable running between a USB port on your computer to one on the Arduino board. Less sophisticated Arduino boards lacking a USB-to-Serial converter will require a special FTDI cable like <a href="https://www.adafruit.com/product/70">AdaFruit's FTDI Serial TTL-232 USB Cable</a>, or <a href="https://www.sparkfun.com/products/9718">SparkFun's FTDI Cable 5V</a>.</p>
 
 <p>The controller includes an output pin for controlling a transmitter for sending Morse code characters (high = key down; low = key up) and a separate pin that sends the Morse code as audio tones that can be used to drive a speaker. The controller can also provide a sequence of starting-tones prompting competitors to begin a competition, and can thus serve as an electronic starting "gun" for use in ARDF events.</p>
