@@ -1,6 +1,9 @@
-<h2>WB8WFK ARDF Foxoring Transmitter</h2>
+<h1>WB8WFK ARDF Foxoring Transmitter</h1>
 <p>This is a simple, inexpensive, transmitter controller for conducting ARDF Foxoring competitions and for demonstrating ARDF principles. The software project is an Arduino script that builds for and runs on most Arduino-like products, including <a href="https://www.adafruit.com/product/2590">AdaFruit's Metro Mini 328</a>, or <a href="https://www.sparkfun.com/products/11113">SparkFun's Arduino Pro Mini 328</a>, and many more.</p>
 
+<p>Controller support for all the common ARDF competition formats is provided: Classic, Sprint, and Foxoring.
+
+<h2>Software</h2>
 <p>The software is a proper Arduino script that will open and build without warnings or errors in Arduino IDE version 1.8.12 and later. The Arduino IDE can also be used to program a device that holds a compatible bootloader. Most Arduino products ship with a bootloader pre-installed.</p>
 
 <p>After being programmed, the controller can be configured via a serial port on the board. An Arduino board that includes a USB-to-Serial converter will allow you to configure the controller with a simple USB cable (standard to micro) connected between a USB port on your computer to one on the Arduino board. Less sophisticated Arduino boards lacking a USB-to-Serial converter will require a special FTDI cable like <a href="https://www.adafruit.com/product/70">AdaFruit's FTDI Serial TTL-232 USB Cable</a>, or <a href="https://www.sparkfun.com/products/9718">SparkFun's FTDI Cable 5V</a>.</p>
@@ -31,7 +34,8 @@
 <b>> VER</b>  <= <i>Displays the software version number</i><br></p></pre>
   
   <p>* These values get stored to EEPROM and are retained between power cycles. </p>
-
+<h2>Hardware</h2>
+<p>Look in the Hardware folder for all hardware-related documents</p>
 <h3>Pinout</h3>
 <pre><p><b>PB1 - Board Pin 9  (Output)</b> <= Audio Out (=Gnd when no tone)<br>
 <b>PB5 - Board Pin 13 (Output)</b> <= LED On=+V<br>
@@ -40,5 +44,3 @@
 <b>PD4 - Board Pin 4  (Input)</b> <= DIP Switch Bit 0 (switch to Gnd)<br>
 <b>PD5 - Board Pin 5  (Input)</b> <= DIP Switch Bit 1 (switch to Gnd)<br>
 <b>PD6 - Board Pin 6  (Input)</b> <= DIP Switch Bit 2 (switch to Gnd)</p></pre>
-<p>A schematic design, a bill of materials, and a source for ordering a printed circuit board will be made available soon.</p>
-
