@@ -158,8 +158,7 @@
         <tr>
             <td>Starting Tone Generator</td>
             <td>> DIP [any of the above]<br>> STA ON<br>> GO</td>
-            <td>DIP = any<br>Sync to start<br>[Note: Starting Tone Generator can only be enabled with a serial command.]</td>
+            <td>N/A</td>
         </tr>
     </table>
-
 </p>
