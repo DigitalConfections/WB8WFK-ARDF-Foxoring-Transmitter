@@ -47,7 +47,8 @@
 <b>PD6 - Board Pin 6  (Input)</b> <= DIP Switch Bit 2 (switch to Gnd)</p></pre>
 
 <h2>Usage</h2>
-<p>The transmitter can be configured using the serial port, or using the DIP switch and sync-button hardware interface. Only a subset of the possible configurations is available when using only the hardware interface. Configuring the DIP setting with a serial port command to anything but 0 (zero) will disable the hardware DIP switch. Default settings are shown in <b>boldface</b>. Serial command arguments may be abbreviated using the first letter of the word. For example: <b>> DIP CLASSIC BEACON</b> can be shortened to <b>> DIP C B</b>.</p>
+<p>The transmitter can be configured using the serial port, or using the DIP switch and sync-button hardware interface. Only a subset of the possible configurations is available when using only the hardware interface. Configuring the DIP setting with a serial port command to anything but CLASSIC BEACON (zero) will disable the hardware DIP switch.</p>
+<p>In the table below, default settings are shown in <b>boldface</b>. Serial command arguments may be abbreviated using the first letter of the word. For example: <b>> DIP CLASSIC BEACON</b> can be shortened to <b>> DIP C B</b>.</p>
 <p>
     <table>
         <tr>
