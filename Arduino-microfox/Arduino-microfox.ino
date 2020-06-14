@@ -178,7 +178,7 @@ void wdt_init(WDReset resetType);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -867,9 +867,16 @@ ISR( TIMER2_COMPB_vect )
  * modified from ISR example for microfox by Jerry Boyd WB8WFK
  * this runs once a second and generates the cycle and sets control flags for the main controller.
  */
-ISR(TIMER1_COMPA_vect)      /*timer1 interrupt 1Hz */
+ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 {
 	static int id_countdown = 0;
+
+	if(g_seconds_since_sync == 0)   /* sync just occurred */
+	{
+		id_countdown = g_id_interval;
+		g_fox_counter = 1;
+		g_lastSeconds = 0;
+	}
 
 	g_seconds_since_sync++; /* Total elapsed time counter */
 	g_fox_seconds_into_interval++;
@@ -1283,13 +1290,19 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			{
 				if(g_start_override)
 				{
-					lb_send_string((char*)"Already synced!\n",FALSE);
+					lb_send_string((char*)"Re-sync successful!\n",FALSE);
 				}
 				else
 				{
 					g_start_override = TRUE;
 					lb_send_string((char*)"Running!\n",FALSE);
 				}
+
+				cli();
+				TCNT1 = 0;  /* Initialize 1-second counter value to 0 */
+				g_seconds_since_sync = 0;
+				g_fox_seconds_into_interval = 0;
+				sei();
 			}
 			break;
 
