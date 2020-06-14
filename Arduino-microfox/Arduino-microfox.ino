@@ -32,6 +32,7 @@
 #include "defs.h"
 #include "linkbus.h"
 #include "morse.h"
+#include <avr/wdt.h>
 
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 #include <avr/io.h>
@@ -44,10 +45,6 @@
 #include "delay.h"
 #include "ardooweeno.h"
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
-
-#ifdef USE_WATCHDOG
-#include <avr/wdt.h>
-#endif
 
 #define MAX_PATTERN_TEXT_LENGTH 20
 #define TEMP_STRING_LENGTH (MAX_PATTERN_TEXT_LENGTH + 10)
@@ -97,6 +94,28 @@ volatile uint8_t g_lastSeconds = 0x00;
 	FoxType& operator += (FoxType & a, int b)
 	{
 		return( a = static_cast < FoxType > (a + b));
+	}
+
+	FoxType& operator-- (FoxType & orig)
+	{
+		orig = static_cast < FoxType > (orig - 1);  /* static_cast required because enum - int -> int */
+		if(orig < BEACON)
+		{
+			orig = BEACON;
+		}
+		return( orig);
+	}
+
+	FoxType operator-- (FoxType & orig, int)
+	{
+		FoxType rVal = orig;
+		--orig;
+		return(rVal);
+	}
+
+	FoxType& operator -= (FoxType & a, int b)
+	{
+		return( a = static_cast < FoxType > (a - b));
 	}
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 
@@ -150,10 +169,6 @@ void sendMorseTone(BOOL onOff);
 void playStartingTone(uint8_t toneFreq);
 void wdt_init(WDReset resetType);
 
-#ifndef USE_WATCHDOG
-	void (* resetFunc)(void) = 0;   /*declare reset function @ address 0 */
-#endif
-
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 	void loop(void);
 	int main(void)
@@ -163,7 +178,7 @@ void wdt_init(WDReset resetType);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -178,24 +193,24 @@ void wdt_init(WDReset resetType);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
 
-/* set the pins that are inputs */
-	pinMode(PIN_NANO_SYNC, INPUT);      /* This pin is used as the sync line
-	                                     * NOTE: The original albq PIC controllers used the CPU reset line as the
-	                                     * sync line. We had issues with transmitters getting out of sync during transport.
-	                                     * later investigation found that ESD events during transport was resetting the
-	                                     * PIC. This code will read this I/O line for sync and after finding that the I/O line
-	                                     * has switched to the high state it never reads it again until a power cycle.
-	                                     * The Arduino reset line does not go off board. ESD event caused out of sync issue fixed. */
-	pinMode(PIN_NANO_DIP_0, INPUT);     /* fox switch LSB */
-	pinMode(PIN_NANO_DIP_1, INPUT);     /* fox switch middle bit */
-	pinMode(PIN_NANO_DIP_2, INPUT);     /* fox switch MSB */
+#if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
+		pinMode(PIN_NANO_SYNC, INPUT_PULLUP);   /* Sync button */
+		pinMode(PIN_NANO_DIP_0, INPUT_PULLUP);  /* DIP switch LSB */
+		pinMode(PIN_NANO_DIP_1, INPUT_PULLUP);  /* DIP switch middle bit */
+		pinMode(PIN_NANO_DIP_2, INPUT_PULLUP);  /* DIP switch MSB */
+#else
+		pinMode(PIN_NANO_SYNC, INPUT);          /* Sync button */
+		pinMode(PIN_NANO_DIP_0, INPUT);         /* DIP switch LSB */
+		pinMode(PIN_NANO_DIP_1, INPUT);         /* DIP switch middle bit */
+		pinMode(PIN_NANO_DIP_2, INPUT);         /* DIP switch MSB */
+#endif /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
-	digitalWrite(PIN_NANO_LED, OFF);    /* Turn off led sync switch is now open */
+	digitalWrite(PIN_NANO_LED, OFF);            /* Turn off led sync switch is now open */
 
 /* set timer1 interrupt at 1Hz */
-	TCCR1A = 0;                         /* set entire TCCR1A register to 0 */
-	TCCR1B = 0;                         /* same for TCCR1B */
-	TCNT1 = 0;                          /*initialize counter value to 0 */
+	TCCR1A = 0;                                 /* set entire TCCR1A register to 0 */
+	TCCR1B = 0;                                 /* same for TCCR1B */
+	TCNT1 = 0;                                  /*initialize counter value to 0 */
 
 /* Set compare match register for 1hz increments
  ************************************************************
@@ -262,19 +277,23 @@ void wdt_init(WDReset resetType);
 
 	if(g_override_DIP_switches)
 	{
-		g_fox = (FoxType)g_override_DIP_switches;
+		g_fox = CLAMP(BEACON, (FoxType)g_override_DIP_switches, INVALID_FOX);
+		if(g_fox == INVALID_FOX)
+		{
+			g_fox = BEACON;
+		}
 	}
-	else                                            /* Read DIP Switches */
+	else                                        /* Read DIP Switches */
 	{
-		if(digitalRead(PIN_NANO_DIP_0) == HIGH )    /*Lsb */
+		if(digitalRead(PIN_NANO_DIP_0) == LOW)  /*Lsb */
 		{
 			g_fox++;
 		}
-		if(digitalRead(PIN_NANO_DIP_1) == HIGH )    /* middle bit */
+		if(digitalRead(PIN_NANO_DIP_1) == LOW)  /* middle bit */
 		{
 			g_fox += 2;
 		}
-		if(digitalRead(PIN_NANO_DIP_2) == HIGH )    /* MSB */
+		if(digitalRead(PIN_NANO_DIP_2) == LOW)  /* MSB */
 		{
 			g_fox += 4;
 		}
@@ -311,6 +330,18 @@ void wdt_init(WDReset resetType);
 	g_fox_seconds_into_interval = 0;
 
 	g_start_override = TRUE;
+
+#if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
+		/* Disable pull-ups to save power */
+		pinMode(PIN_NANO_SYNC, INPUT);  /* Sync button input */
+		pinMode(PIN_NANO_DIP_0, INPUT); /* fox switch LSB */
+		pinMode(PIN_NANO_DIP_1, INPUT); /* fox switch middle bit */
+		pinMode(PIN_NANO_DIP_2, INPUT); /* fox switch MSB */
+		pinMode(PIN_NANO_SYNC, OUTPUT);
+		pinMode(PIN_NANO_DIP_0, OUTPUT);
+		pinMode(PIN_NANO_DIP_1, OUTPUT);
+		pinMode(PIN_NANO_DIP_2, OUTPUT);
+#endif  /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
 	if((g_fox == BEACON) || (g_fox == SPECTATOR))
 	{
@@ -893,14 +924,10 @@ SIGNAL(TIMER0_COMPA_vect)
 		{
 			digitalWrite(PIN_AUDIO_OUT,OFF);
 		}
-
-		TCCR0A |= (1 << COM0A0);
 	}
 	else
 	{
-		TCCR0A = (1 << WGM01);
 		digitalWrite(PIN_AUDIO_OUT,OFF);
-/*		digitalWrite(6,OFF); */
 	}
 }
 
@@ -1072,15 +1099,11 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 		{
 			case MESSAGE_RESET:
 			{
-#ifdef USE_WATCHDOG
-					wdt_init(WD_FORCE_RESET);
-					while(1)
-					{
-						;
-					}
-#else
-					resetFunc();    /*call reset */
-#endif /* USE_WATCHDOG */
+				wdt_init(WD_FORCE_RESET);
+				while(1)
+				{
+					;
+				}
 			}
 			break;
 
@@ -1137,7 +1160,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						{
 							x = BEACON;
 						}
-						if(t == 'F')
+						else if(t == 'F')
 						{
 							if((u > '0') && (u < '6'))
 							{
@@ -1170,7 +1193,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 							}
 						}
 
-						if(x)
+						if(x != BEACON)
 						{
 							c = CLAMP(SPECTATOR,x,SPRINT_F5);
 						}
@@ -1274,15 +1297,18 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			{
 				uint8_t flag = EEPROM_INITIALIZED_FLAG + 1;
 				eeprom_write_byte(&ee_interface_eeprom_initialization_flag,flag);
-#ifdef USE_WATCHDOG
-					wdt_init(WD_FORCE_RESET);
-					while(1)
-					{
-						;
-					}
-#else
-					resetFunc();    /*call reset */
-#endif /* USE_WATCHDOG */
+				g_clock_calibration = 0xFFFF;
+				eeprom_update_word(&ee_clock_calibration,g_clock_calibration);
+				for(uint8_t i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
+				{
+					eeprom_write_byte((uint8_t*)&ee_stationID_text,0xFF);
+				}
+
+				wdt_init(WD_FORCE_RESET);
+				while(1)
+				{
+					;
+				}
 			}
 			break;
 
@@ -1593,4 +1619,3 @@ float getTemp(void)
 	readADC();  /* throw away first reading */
 	return(offset + (readADC() - 324.31) / 1.22);
 }
-

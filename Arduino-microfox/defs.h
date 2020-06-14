@@ -27,6 +27,7 @@
 #define DEFS_H
 
 // #define COMPILE_FOR_ATMELSTUDIO7
+#define HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED FALSE
 
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 	#include <avr/io.h>
@@ -52,12 +53,15 @@
 #define OUTPUT 0x1
 #endif
 
-/* #define F_CPU 16000000UL / * gets declared in makefile * / */
+#ifndef INPUT_PULLUP
+#define INPUT_PULLUP 0x3
+#endif
 
+/* #define F_CPU 16000000UL / * gets declared in makefile * / */
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.10"
+#define SW_REVISION "0.11"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -119,8 +123,6 @@ INVALID_FOX
 
 #define MAX_CODE_SPEED_WPM 20
 #define MIN_CODE_SPEED_WPM 5
-
-#define USE_WATCHDOG
 
 typedef enum
 {
@@ -197,10 +199,9 @@ typedef enum
 #define UINT16_MAX __INT16_MAX__
 #endif
 
-#define ON              1
 #define OFF             0
+#define ON              1
 #define TOGGLE			2
-
 #define UNDETERMINED	3
 
 #define MIN(A,B)    ({ __typeof__(A) __a = (A); __typeof__(B) __b = (B); __a < __b ? __a : __b; })
