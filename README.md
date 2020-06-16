@@ -29,8 +29,6 @@
 <b>> SPD</b>  <= <i>Displays the ID code speed setting</i><br>
 <b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br>
 <b>> STA</b>  <= <i>Displays the starting tones setting</i><br>
-<b>> SYN [on|off]</b>  <= <i>* Turns on/off synchronization using sync button or "GO" command</i><br>
-<b>> SYN</b>  <= <i>Displays the synchronization setting</i><br>
 <b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br>
 <b>> VER</b>  <= <i>Displays the software version number</i></p></pre>
 
