@@ -36,6 +36,9 @@
 <h2>Hardware</h2>
 <p>Look in the Hardware folder for all hardware-related documents</p>
 <h3>Pinout</h3>
+
+![Docs/ControllerPinout.png](Docs/ControllerPinout.png)
+
 <pre><p><b>PB1 - Board Pin 9  (Output)</b> <= Audio Out (=Gnd when no tone)<br>
 <b>PB5 - Board Pin 13 (Output)</b> <= LED On=+V<br>
 <b>PD2 - Board Pin 2  (Output)</b> <= Key/PTT On=+V<br>
