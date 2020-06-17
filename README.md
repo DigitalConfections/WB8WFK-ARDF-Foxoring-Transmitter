@@ -107,11 +107,6 @@
         <tr>
             <td>Sprint Fox Slow #2</td>
             <td>> DIP SPRINT S2</td>
-        <tr>
-            <td>Starting Tone Generator</td>
-            <td>> DIP [any of the above]<br><b>> STA ON</b><br>> GO</td>
-            <td>N/A</td>
-        </tr>
             <td>N/A</td>
         </tr>
         <tr>
@@ -167,7 +162,7 @@
         <tr>
             <td>Synchronize</td>
             <td>> GO</td>
-            <td>Pull sync pin low for at least 1 second<br>Allow sync pin to rise<br>[Must happen within 1 cycle after power-on</td>
+            <td>Pull sync pin low for at least 1 second<br>Allow sync pin to rise<br>[Must happen within 1 cycle after power-on]</td>
         </tr>
     </table>
 </p>
