@@ -165,7 +165,7 @@
         <tr>
             <td>Synchronize</td>
             <td>> GO</td>
-            <td>Pull sync pin low for at least 1 second<br>Allow sync pin to rise<br>[Must happen within 1 cycle after power-on]</td>
+            <td>Pull sync pin low for at least 1 second<br>Allow sync pin to rise<br>[Must happen within 1 fox cycle after power-on]</td>
         </tr>
     </table>
 </p>
