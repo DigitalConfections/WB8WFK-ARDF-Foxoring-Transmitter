@@ -1,5 +1,5 @@
 <h1>WB8WFK ARDF Foxoring Transmitter</h1>
-<p>This is a simple, inexpensive, transmitter controller for conducting ARDF Foxoring competitions and for demonstrating ARDF principles. The software project is an Arduino script that builds for and runs on most Arduino-like products, including <a href="https://www.adafruit.com/product/2590">AdaFruit's Metro Mini 328</a>, or <a href="https://www.sparkfun.com/products/11113">SparkFun's Arduino Pro Mini 328</a>, and many more.</p>
+<p>This is a simple, inexpensive, transmitter and controller for conducting ARDF Foxoring competitions and for demonstrating ARDF principles. The software project is an Arduino script that builds for and runs on most Arduino-like products, including <a href="https://www.adafruit.com/product/2590">AdaFruit's Metro Mini 328</a>, or <a href="https://www.sparkfun.com/products/11113">SparkFun's Arduino Pro Mini 328</a>, and many more.</p>
 
 <p>Controller support for all the common ARDF competition formats is provided: Classic, Sprint, and Foxoring.</p>
 
@@ -50,7 +50,7 @@
 <p>
     <table>
         <tr>
-            <th>Configuration</th>
+            <th>Function</th>
             <th>Software Commands</th>
             <th>Hardware Settings</th>
         </tr>
@@ -158,6 +158,11 @@
             <td>Starting Tone Generator</td>
             <td>> DIP [any of the above]<br><b>> STA ON</b><br>> GO</td>
             <td>N/A</td>
+        </tr>
+        <tr>
+            <td>Synchronize</td>
+            <td>> GO</td>
+            <td>Pull sync pin low for at least 1 second<br>Allow sync pin to rise<br>[Must happen within 1 cycle after power-on]</td>
         </tr>
     </table>
 </p>
