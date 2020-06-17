@@ -40,8 +40,8 @@
 ![Docs/ControllerPinout.png](Docs/ControllerPinout.png)
 
 <pre><p><b>PB1 - Board Pin 9  (Output)</b> <= Audio Out (=Gnd when no tone)<br>
-<b>PB5 - Board Pin 13 (Output)</b> <= LED On=+V<br>
-<b>PD2 - Board Pin 2  (Output)</b> <= Key/PTT On=+V<br>
+<b>PB5 - Board Pin 13 (Output)</b> <= LED On=VCC<br>
+<b>PD2 - Board Pin 2  (Output)</b> <= Key/PTT On=VCC<br>
 <b>PD3 - Board Pin 3  (Input)</b>  <= Synchronize (mom. switch to Gnd)<br>
 <b>PD4 - Board Pin 4  (Input)</b> <= DIP Switch Bit 0 (switch to Gnd)<br>
 <b>PD5 - Board Pin 5  (Input)</b> <= DIP Switch Bit 1 (switch to Gnd)<br>
