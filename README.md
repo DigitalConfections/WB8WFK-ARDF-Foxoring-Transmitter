@@ -11,7 +11,7 @@
 <p>The fox-controller software provides an output pin for controlling a transmitter for sending Morse code characters (high = key down; low = key up) and a separate pin that sends the Morse code as audio tones that can be used to drive a speaker. The controller can also provide a sequence of starting-tones prompting competitors to begin a competition, and can thus serve as an electronic starting "gun" for use in ARDF events.</p>
 
 <h3>Serial Commands</h3>
-<p>The controller serial interface operates at 57600 baud that can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive any of the following commands.
+<p>The fox-controller serial interface operates at 57600 baud, and can be accessed using any serial TTY interface program such as PuTTY or Arduino's own Serial Monitor tool. It provides a command prompt > indicating that it is ready to receive any of the following commands.
 </p>
 
 <pre><p><b>> CAL [num]</b>  <= <i>* Sets the clock calibration for precise timing</i><br>
