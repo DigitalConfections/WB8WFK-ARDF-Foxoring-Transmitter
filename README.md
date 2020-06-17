@@ -155,7 +155,7 @@
             <td>N/A</td>
         </tr>
         <tr>
-            <td>Starting Tone Generator</td>
+            <td>Starting Tones Generator</td>
             <td>> DIP [any of the above]<br><b>> STA ON</b><br>> GO</td>
             <td>N/A</td>
         </tr>
