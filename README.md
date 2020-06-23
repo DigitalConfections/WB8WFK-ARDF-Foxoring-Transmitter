@@ -4,7 +4,7 @@
 <p>Controller support for all the common ARDF competition formats is provided: Classic, Sprint, and Foxoring.</p>
 
 <h2>Software</h2>
-<p>The software is a proper Arduino script that will open and build without warnings or errors in Arduino IDE version 1.8.12 and later. It has also been shown to work with the online <a href="https://create.arduino.cc/editor">Arduino Web Editor</a>. The Arduino IDE can also be used to program a device that contains a compatible bootloader. Most Arduino products ship with a bootloader pre-installed.</p>
+<p>The software is a proper Arduino script that will open and build without warnings or errors in Arduino IDE version 1.8.12 and later. It has also been shown to work with the online <a href="https://create.arduino.cc/editor">Arduino Web Editor</a>. The Arduino IDE can be used to program a device that contains a compatible bootloader. Most Arduino products ship with a bootloader pre-installed.</p>
 
 <p>After being programmed, the controller can be configured via a serial port on the board. An Arduino board that includes a USB-to-Serial converter will allow you to configure the controller with a simple USB cable (standard to micro) connected between a USB port on your computer to one on the Arduino board. Less sophisticated Arduino boards lacking a USB-to-Serial converter will require a special FTDI cable like <a href="https://www.adafruit.com/product/70">AdaFruit's FTDI Serial TTL-232 USB Cable</a>, or <a href="https://www.sparkfun.com/products/9718">SparkFun's FTDI Cable 5V</a>.</p>
 
