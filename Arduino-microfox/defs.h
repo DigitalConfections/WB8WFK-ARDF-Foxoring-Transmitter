@@ -26,11 +26,19 @@
 #ifndef DEFS_H
 #define DEFS_H
 
-// #define COMPILE_FOR_ATMELSTUDIO7
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#ifndef TRUE
+#define TRUE !FALSE
+#endif
+
+#define COMPILE_FOR_ATMELSTUDIO7 FALSE
 #define HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED FALSE
 #define CAL_SIGNAL_ON_PD3 FALSE
 
-#ifdef COMPILE_FOR_ATMELSTUDIO7
+#if COMPILE_FOR_ATMELSTUDIO7
 	#include <avr/io.h>
 	#include <util/delay.h>
 	#include <avr/interrupt.h>
@@ -162,14 +170,6 @@ typedef enum
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
 #define EEPROM_ENABLE_LEDS_DEFAULT 1
 #define EEPROM_ENABLE_STARTTIMER_DEFAULT 1
-
-#ifndef FALSE
-   #define FALSE 0
-#endif
-
-#ifndef TRUE
-   #define TRUE !FALSE
-#endif
 
 #ifndef BOOL
 	typedef uint8_t BOOL;
