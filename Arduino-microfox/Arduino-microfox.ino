@@ -178,7 +178,7 @@ void doSynchronization(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -186,35 +186,35 @@ void doSynchronization(void);
 	cli();                          /*stop interrupts for setup */
 
 	/* set pins as outputs */
-	pinMode(PIN_LED, OUTPUT);  /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
+	pinMode(PIN_LED, OUTPUT);       /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
 	digitalWrite(PIN_LED, OFF);
-	pinMode(PIN_MORSE_KEY, OUTPUT);  /* This pin is used to control the KEY line to the transmittter only active on cycle. */
+	pinMode(PIN_MORSE_KEY, OUTPUT); /* This pin is used to control the KEY line to the transmittter only active on cycle. */
 	digitalWrite(PIN_MORSE_KEY, OFF);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
 
 #if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
-		pinMode(PIN_SYNC, INPUT_PULLUP);   /* Sync button */
-		pinMode(PIN_DIP_0, INPUT_PULLUP);  /* DIP switch LSB */
-		pinMode(PIN_DIP_1, INPUT_PULLUP);  /* DIP switch middle bit */
-		pinMode(PIN_DIP_2, INPUT_PULLUP);  /* DIP switch MSB */
+		pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
+		pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
+		pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
+		pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
 #else
-		pinMode(PIN_SYNC, INPUT);          /* Sync button */
-		pinMode(PIN_DIP_0, INPUT);         /* DIP switch LSB */
-		pinMode(PIN_DIP_1, INPUT);         /* DIP switch middle bit */
-		pinMode(PIN_DIP_2, INPUT);         /* DIP switch MSB */
+		pinMode(PIN_SYNC, INPUT);           /* Sync button */
+		pinMode(PIN_DIP_0, INPUT);          /* DIP switch LSB */
+		pinMode(PIN_DIP_1, INPUT);          /* DIP switch middle bit */
+		pinMode(PIN_DIP_2, INPUT);          /* DIP switch MSB */
 #endif /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
-	digitalWrite(PIN_LED, OFF);            /* Turn off led sync switch is now open */
+	digitalWrite(PIN_LED, OFF);             /* Turn off led sync switch is now open */
 
 /* set timer1 interrupt at 1Hz */
-	TCCR1A = 0;                                 /* set entire TCCR1A register to 0 */
-	TCCR1B = 0;                                 /* same for TCCR1B */
-	TCNT1 = 0;                                  /*initialize counter value to 0 */
+	TCCR1A = 0;                             /* set entire TCCR1A register to 0 */
+	TCCR1B = 0;                             /* same for TCCR1B */
+	TCNT1 = 0;                              /*initialize counter value to 0 */
 
 /* Set compare match register for 1hz increments
  ************************************************************
- ** USE THIS TO FIX BOARD PROCESSOR CLOCK ERROR
+ ** USE THIS TO CALIBRATE FOR BOARD PROCESSOR CLOCK ERROR
  ************************************************************/
 	/* first testing found bad drift relative to a gps stable clock (iphone timer) is was 10 seconds in about 50 minutes
 	 * Today I measured the Arduino nano 16 Mhz clock and it was 16.050 MHz. Yes 50 Khz high!!
@@ -237,6 +237,9 @@ void doSynchronization(void);
 	TCCR2A = 0;
 	TCCR2B = 0;
 	TCCR2A |= (1 << WGM21);                             /* set Clear Timer on Compare Match (CTC) mode with OCR2A setting the top */
+#if CAL_SIGNAL_ON_PD3
+		TCCR2A |= (1 << COM2B0);                        /* Toggle OC2B (PD3) on compare match */
+#endif /* CAL_SIGNAL_ON_PD3 */
 	TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);  /* 1024 Prescaler */
 	OCR2A = 0x0C;                                       /* set frequency to ~300 Hz (0x0c) */
 	/* Use system clock for Timer/Counter2 */
@@ -286,17 +289,17 @@ void doSynchronization(void);
 			g_fox = BEACON;
 		}
 	}
-	else                                        /* Read DIP Switches */
+	else                                    /* Read DIP Switches */
 	{
-		if(digitalRead(PIN_DIP_0) == LOW)  /*Lsb */
+		if(digitalRead(PIN_DIP_0) == LOW)   /*Lsb */
 		{
 			g_fox++;
 		}
-		if(digitalRead(PIN_DIP_1) == LOW)  /* middle bit */
+		if(digitalRead(PIN_DIP_1) == LOW)   /* middle bit */
 		{
 			g_fox += 2;
 		}
-		if(digitalRead(PIN_DIP_2) == LOW)  /* MSB */
+		if(digitalRead(PIN_DIP_2) == LOW)   /* MSB */
 		{
 			g_fox += 4;
 		}
@@ -304,9 +307,9 @@ void doSynchronization(void);
 
 #if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
 		/* Disable pull-ups to save power */
-		pinMode(PIN_DIP_0, INPUT); /* fox switch LSB */
-		pinMode(PIN_DIP_1, INPUT); /* fox switch middle bit */
-		pinMode(PIN_DIP_2, INPUT); /* fox switch MSB */
+		pinMode(PIN_DIP_0, INPUT);  /* fox switch LSB */
+		pinMode(PIN_DIP_1, INPUT);  /* fox switch middle bit */
+		pinMode(PIN_DIP_2, INPUT);  /* fox switch MSB */
 		pinMode(PIN_DIP_0, OUTPUT);
 		pinMode(PIN_DIP_1, OUTPUT);
 		pinMode(PIN_DIP_2, OUTPUT);
@@ -412,35 +415,6 @@ ISR(PCINT2_vect)
 	}
 
 	g_sync_pin_timer = 0;
-}
-
-
-/***********************************************************************
- * Watchdog Timeout ISR
- *
- * The Watchdog timer helps prevent lockups due to hardware problems.
- * It is especially helpful in this application for preventing I2C bus
- * errors from locking up the foreground process.
- ************************************************************************/
-ISR(WDT_vect)
-{
-	static uint8_t limit = 10;
-
-/*	g_i2c_not_timed_out = FALSE;    / * unstick I2C * / */
-
-	/* Don't allow an unlimited number of WD interrupts to occur without enabling
-	 * hardware resets. But a limited number might be required during hardware
-	 * initialization. */
-/*	if(!g_enableHardwareWDResets && limit)
- *	{
- *		WDTCSR |= (1 << WDIE);  / * this prevents hardware resets from occurring * /
- *	} */
-
-	if(limit)
-	{
-		limit--;
-/*		g_last_error_code = ERROR_CODE_WD_TIMEOUT; */
-	}
 }
 
 
@@ -683,6 +657,7 @@ ISR(USART_UDRE_vect)
 	}
 }   /* End of UART Tx ISR */
 
+
 /***********************************************************************
  * Timer/Counter2 Compare Match B ISR
  *
@@ -820,10 +795,10 @@ ISR( TIMER2_COMPB_vect )
 				{
 					if(g_enable_LEDs)
 					{
-						digitalWrite(PIN_LED, HIGH);   /*  LED */
+						digitalWrite(PIN_LED, HIGH);    /*  LED */
 					}
 
-					digitalWrite(PIN_MORSE_KEY, HIGH);       /* TX key line */
+					digitalWrite(PIN_MORSE_KEY, HIGH);  /* TX key line */
 				}
 
 				if(playMorse)
@@ -836,10 +811,10 @@ ISR( TIMER2_COMPB_vect )
 		{
 			if(g_enable_LEDs && !g_sync_pin_stable)
 			{
-				digitalWrite(PIN_LED, key);    /*  LED */
+				digitalWrite(PIN_LED, key);     /*  LED */
 			}
 
-			digitalWrite(PIN_MORSE_KEY, key);        /* TX key line */
+			digitalWrite(PIN_MORSE_KEY, key);   /* TX key line */
 			codeInc = g_code_throttle;
 			if(playMorse)
 			{
@@ -854,9 +829,9 @@ ISR( TIMER2_COMPB_vect )
 			key = OFF;
 			if(!g_sync_pin_stable)
 			{
-				digitalWrite(PIN_LED, LOW);    /*  LED Off */
+				digitalWrite(PIN_LED, LOW);     /*  LED Off */
 			}
-			digitalWrite(PIN_MORSE_KEY, LOW);        /* TX key line */
+			digitalWrite(PIN_MORSE_KEY, LOW);   /* TX key line */
 		}
 
 		if(playMorse)
@@ -907,10 +882,10 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 
 			if(g_sync_enabled)
 			{
-				PCMSK2 &= ~(1 << PCINT19);      /* Disable PCINT19 */
-				PCICR &= ~(1 << PCIE2);         /* Disable pin change interrupt 2 */
+				PCMSK2 &= ~(1 << PCINT19);  /* Disable PCINT19 */
+				PCICR &= ~(1 << PCIE2);     /* Disable pin change interrupt 2 */
 				pinMode(PIN_SYNC, INPUT);
-				pinMode(PIN_SYNC, OUTPUT); /* Set sync pin as output low */
+				pinMode(PIN_SYNC, OUTPUT);  /* Set sync pin as output low */
 				g_sync_enabled = FALSE;
 			}
 		}
