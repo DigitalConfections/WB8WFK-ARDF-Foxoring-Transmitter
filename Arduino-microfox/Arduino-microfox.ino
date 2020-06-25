@@ -34,7 +34,7 @@
 #include "morse.h"
 #include <avr/wdt.h>
 
-#ifdef COMPILE_FOR_ATMELSTUDIO7
+#if COMPILE_FOR_ATMELSTUDIO7
 #include <avr/io.h>
 #include <avr/eeprom.h>
 #include <string.h>
@@ -76,7 +76,7 @@ volatile int16_t g_sync_pin_timer = 0;
 volatile BOOL g_sync_pin_stable = FALSE;
 volatile BOOL g_sync_enabled = TRUE;
 
-#ifndef COMPILE_FOR_ATMELSTUDIO7
+#if !COMPILE_FOR_ATMELSTUDIO7
 	FoxType& operator++ (FoxType & orig)
 	{
 		orig = static_cast < FoxType > (orig + 1);  /* static_cast required because enum + int -> int */
@@ -169,7 +169,7 @@ void playStartingTone(uint8_t toneFreq);
 void wdt_init(WDReset resetType);
 void doSynchronization(void);
 
-#ifdef COMPILE_FOR_ATMELSTUDIO7
+#if COMPILE_FOR_ATMELSTUDIO7
 	void loop(void);
 	int main(void)
 #else
@@ -344,7 +344,7 @@ void doSynchronization(void);
 
 	wdt_init(WD_HW_RESETS);
 
-#ifdef COMPILE_FOR_ATMELSTUDIO7
+#if COMPILE_FOR_ATMELSTUDIO7
 		while(1)
 		{
 			loop();
