@@ -28,7 +28,7 @@
 #include "linkbus.h"
 #include "defs.h"
 
-#ifdef COMPILE_FOR_ATMELSTUDIO7
+#if COMPILE_FOR_ATMELSTUDIO7
 #include <string.h>
 #include <stdio.h>
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
