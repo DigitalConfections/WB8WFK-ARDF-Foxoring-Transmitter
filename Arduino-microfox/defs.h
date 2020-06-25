@@ -28,6 +28,7 @@
 
 // #define COMPILE_FOR_ATMELSTUDIO7
 #define HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED FALSE
+#define CAL_SIGNAL_ON_PD3 FALSE
 
 #ifdef COMPILE_FOR_ATMELSTUDIO7
 	#include <avr/io.h>
@@ -61,7 +62,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.13"
+#define SW_REVISION "0.14"
 
 //#define TRANQUILIZE_WATCHDOG
 

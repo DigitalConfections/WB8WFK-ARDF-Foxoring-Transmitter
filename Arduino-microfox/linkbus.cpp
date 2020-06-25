@@ -49,7 +49,6 @@ static const char textHelp[][23] = { "\nCommands:\n",
 									 "  RST - Reset\n",
 									 "  SPD - ID code speed\n",
 									 "  STA - Start tones\n",
-									 "  SYN - Sync on/off\n",
 									 "  TEM - Temperature\n",
 									 "  VER - S/W version\n" };
 
