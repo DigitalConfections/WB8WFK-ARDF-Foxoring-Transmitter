@@ -178,7 +178,7 @@ void doSynchronization(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -193,24 +193,29 @@ void doSynchronization(void);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
 
-#if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
-		pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
-		pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
-		pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
-		pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
-#else
-		pinMode(PIN_SYNC, INPUT);           /* Sync button */
-		pinMode(PIN_DIP_0, INPUT);          /* DIP switch LSB */
-		pinMode(PIN_DIP_1, INPUT);          /* DIP switch middle bit */
-		pinMode(PIN_DIP_2, INPUT);          /* DIP switch MSB */
-#endif /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
+	pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
+	pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
+	pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
+	pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
+	digitalWrite(PIN_LED, OFF);         /* Turn off led sync switch is now open */
 
-	digitalWrite(PIN_LED, OFF);             /* Turn off led sync switch is now open */
+	/* Set unused pins as outputs pulled high */
+	pinMode(PIN_UNUSED_7, INPUT_PULLUP);
+	pinMode(PIN_UNUSED_8, INPUT_PULLUP);
+	pinMode(PIN_UNUSED_10, INPUT_PULLUP);
+	pinMode(PIN_UNUSED_12, INPUT_PULLUP);
+	pinMode(A0, INPUT_PULLUP);
+	pinMode(A1, INPUT_PULLUP);
+	pinMode(A2, INPUT_PULLUP);
+	pinMode(A3, INPUT_PULLUP);
+#if !CAL_SIGNAL_ON_PD3
+	pinMode(PIN_CAL_OUT, INPUT_PULLUP);
+#endif
 
-/* set timer1 interrupt at 1Hz */
-	TCCR1A = 0;                             /* set entire TCCR1A register to 0 */
-	TCCR1B = 0;                             /* same for TCCR1B */
-	TCNT1 = 0;                              /*initialize counter value to 0 */
+	/* set timer1 interrupt at 1Hz */
+	TCCR1A = 0; /* set entire TCCR1A register to 0 */
+	TCCR1B = 0; /* same for TCCR1B */
+	TCNT1 = 0;  /*initialize counter value to 0 */
 
 /* Set compare match register for 1hz increments
  ************************************************************
@@ -238,8 +243,8 @@ void doSynchronization(void);
 	TCCR2B = 0;
 	TCCR2A |= (1 << WGM21);                             /* set Clear Timer on Compare Match (CTC) mode with OCR2A setting the top */
 #if CAL_SIGNAL_ON_PD3
-	pinMode(PIN_CAL_OUT,OUTPUT); /* 601Hz Calibration Signal */
-	TCCR2A |= (1 << COM2A0);                        /* Toggle OC2A (PB3) on compare match */
+		pinMode(PIN_CAL_OUT, OUTPUT);                   /* 601Hz Calibration Signal */
+		TCCR2A |= (1 << COM2A0);                        /* Toggle OC2A (PB3) on compare match */
 #endif /* CAL_SIGNAL_ON_PD3 */
 	TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);  /* 1024 Prescaler */
 
