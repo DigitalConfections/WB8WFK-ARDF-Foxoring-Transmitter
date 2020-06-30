@@ -238,10 +238,13 @@ void doSynchronization(void);
 	TCCR2B = 0;
 	TCCR2A |= (1 << WGM21);                             /* set Clear Timer on Compare Match (CTC) mode with OCR2A setting the top */
 #if CAL_SIGNAL_ON_PD3
-		TCCR2A |= (1 << COM2B0);                        /* Toggle OC2B (PD3) on compare match */
+	pinMode(PIN_CAL_OUT,OUTPUT); /* 601Hz Calibration Signal */
+	TCCR2A |= (1 << COM2A0);                        /* Toggle OC2A (PB3) on compare match */
 #endif /* CAL_SIGNAL_ON_PD3 */
 	TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);  /* 1024 Prescaler */
+
 	OCR2A = 0x0C;                                       /* set frequency to ~300 Hz (0x0c) */
+	OCR2B = 0x00;
 	/* Use system clock for Timer/Counter2 */
 	ASSR &= ~(1 << AS2);
 	/* Reset Timer/Counter2 Interrupt Mask Register */
