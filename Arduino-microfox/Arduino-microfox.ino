@@ -178,7 +178,7 @@ void doSynchronization(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -329,7 +329,7 @@ void doSynchronization(void);
 		g_number_of_foxes = 1;
 		g_pattern_codespeed = 8;
 		g_id_interval = 600;
-		g_startclock_interval = 300;
+		g_startclock_interval = (g_fox == SPECTATOR) ? 120 : 300;
 	}
 	else if(((g_fox >= FOX_1) && (g_fox <= FOX_5)) || (g_fox == FOX_DEMO))
 	{
@@ -907,7 +907,7 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 		}
 	}
 
-	if((g_seconds_since_sync + 11) % g_startclock_interval <= 10)
+	if(g_enable_start_timer && ((g_seconds_since_sync + 11) % g_startclock_interval <= 10))
 	{
 		g_lastSeconds = (uint8_t)((g_seconds_since_sync + 11) % g_startclock_interval);
 	}
