@@ -70,7 +70,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.17"
+#define SW_REVISION "0.18"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -111,7 +111,6 @@ typedef unsigned char uint8_t;
 #define PIN_UNUSED_12 12
 #define PIN_LED 13
 
-
 typedef enum {
 BEACON = 0,
 FOX_1,
@@ -133,6 +132,8 @@ SPRINT_F3,
 SPRINT_F4,
 SPRINT_F5,
 SPRINT_DEMO,
+NO_CODE_START_TONES_2M,
+NO_CODE_START_TONES_5M,
 INVALID_FOX
 } FoxType;
 
