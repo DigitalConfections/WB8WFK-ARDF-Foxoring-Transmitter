@@ -50,7 +50,7 @@
 #define TEMP_STRING_LENGTH (MAX_PATTERN_TEXT_LENGTH + 10)
 
 volatile int32_t g_seconds_since_sync = 0;  /* Total elapsed time counter */
-FoxType g_fox                   = BEACON;   /* Sets Fox number not set by ISR. Set in startup and checked in main. */
+volatile FoxType g_fox          = BEACON;   /* Sets Fox number not set by ISR. Set in startup and checked in main. */
 volatile int g_active           = 0;        /* Disable active. set and clear in ISR. Checked in main. */
 
 volatile int g_on_the_air       = 0;        /* Controls transmitter Morse activity */
@@ -70,14 +70,14 @@ volatile int g_id_interval = 0;
 volatile BOOL g_time_to_ID = FALSE;
 volatile int g_startclock_interval = 60;
 
-volatile BOOL g_audio_tone_on = FALSE;
+volatile BOOL g_audio_tone_state = FALSE;
 volatile uint8_t g_lastSeconds = 0x00;
 volatile int16_t g_sync_pin_timer = 0;
 volatile BOOL g_sync_pin_stable = FALSE;
 volatile BOOL g_sync_enabled = TRUE;
 
 #if !COMPILE_FOR_ATMELSTUDIO7
-	FoxType& operator++ (FoxType & orig)
+	FoxType operator++ (volatile FoxType &orig, int)
 	{
 		orig = static_cast < FoxType > (orig + 1);  /* static_cast required because enum + int -> int */
 		if(orig > INVALID_FOX)
@@ -87,38 +87,10 @@ volatile BOOL g_sync_enabled = TRUE;
 		return( orig);
 	}
 
-	FoxType operator++ (FoxType & orig, int)
+	FoxType operator += (volatile FoxType &a, int b)
 	{
-		FoxType rVal = orig;
-		++orig;
-		return( rVal);
-	}
-
-	FoxType& operator += (FoxType & a, int b)
-	{
-		return( a = static_cast < FoxType > (a + b));
-	}
-
-	FoxType& operator-- (FoxType & orig)
-	{
-		orig = static_cast < FoxType > (orig - 1);  /* static_cast required because enum - int -> int */
-		if(orig < BEACON)
-		{
-			orig = BEACON;
-		}
-		return( orig);
-	}
-
-	FoxType operator-- (FoxType & orig, int)
-	{
-		FoxType rVal = orig;
-		--orig;
-		return(rVal);
-	}
-
-	FoxType& operator -= (FoxType & a, int b)
-	{
-		return( a = static_cast < FoxType > (a - b));
+		a = static_cast < FoxType > (a + b);    /* static_cast required because enum + int -> int */
+		return( a);
 	}
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 
@@ -154,7 +126,7 @@ static volatile uint8_t g_enable_LEDs;
 static volatile uint8_t g_enable_start_timer;
 
 static char g_tempStr[TEMP_STRING_LENGTH] = { '\0' };
-
+static volatile uint8_t g_LEDs_Timed_Out = FALSE;
 /*
  * Function Prototypes
  */
@@ -166,8 +138,10 @@ uint16_t readADC();
 void setUpTemp(void);
 void sendMorseTone(BOOL onOff);
 void playStartingTone(uint8_t toneFreq);
-void wdt_init(WDReset resetType);
+void wdt_set(WDReset resetType);
 void doSynchronization(void);
+void setupForFox(void);
+void softwareReset(void);
 
 #if COMPILE_FOR_ATMELSTUDIO7
 	void loop(void);
@@ -178,7 +152,7 @@ void doSynchronization(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -186,9 +160,9 @@ void doSynchronization(void);
 	cli();                          /*stop interrupts for setup */
 
 	/* set pins as outputs */
-	pinMode(PIN_LED, OUTPUT);       /* The nano amber LED: This led blinks when off cycle and blinks with code when on cycle. */
+	pinMode(PIN_LED, OUTPUT);       /* The amber LED: This led blinks when off cycle and blinks with code when on cycle. */
 	digitalWrite(PIN_LED, OFF);
-	pinMode(PIN_MORSE_KEY, OUTPUT); /* This pin is used to control the KEY line to the transmittter only active on cycle. */
+	pinMode(PIN_MORSE_KEY, OUTPUT); /* This pin is used to control the KEY line to the transmitter only active on cycle. */
 	digitalWrite(PIN_MORSE_KEY, OFF);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
@@ -272,9 +246,11 @@ void doSynchronization(void);
 	PCICR = 0x00;
 	PCICR = (1 << PCIE2);       /* Enable pin change interrupt 2 */
 
-	sei();                      /*allow interrupts. Arm and run */
+	sei();                      /* Enable interrupts */
 
 	linkbus_init(BAUD);         /* Start the Link Bus serial comms */
+
+	setupForFox();
 
 	lb_send_string((char*)"\n\nStored Data:\n", TRUE);
 	sprintf(g_tempStr, "  ID: %s\n", g_messages_text[STATION_ID]);
@@ -289,30 +265,6 @@ void doSynchronization(void);
 	lb_send_string(g_tempStr, TRUE);
 	lb_send_NewPrompt();
 
-	if(g_override_DIP_switches)
-	{
-		g_fox = CLAMP(BEACON, (FoxType)g_override_DIP_switches, INVALID_FOX);
-		if(g_fox == INVALID_FOX)
-		{
-			g_fox = BEACON;
-		}
-	}
-	else                                    /* Read DIP Switches */
-	{
-		if(digitalRead(PIN_DIP_0) == LOW)   /*Lsb */
-		{
-			g_fox++;
-		}
-		if(digitalRead(PIN_DIP_1) == LOW)   /* middle bit */
-		{
-			g_fox += 2;
-		}
-		if(digitalRead(PIN_DIP_2) == LOW)   /* MSB */
-		{
-			g_fox += 4;
-		}
-	}
-
 #if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
 		/* Disable pull-ups to save power */
 		pinMode(PIN_DIP_0, INPUT);  /* fox switch LSB */
@@ -323,35 +275,6 @@ void doSynchronization(void);
 		pinMode(PIN_DIP_2, OUTPUT);
 #endif  /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
-	if((g_fox == BEACON) || (g_fox == SPECTATOR))
-	{
-		g_on_air_interval = 600;
-		g_number_of_foxes = 1;
-		g_pattern_codespeed = 8;
-		g_id_interval = 600;
-		g_startclock_interval = (g_fox == SPECTATOR) ? 120 : 300;
-	}
-	else if(((g_fox >= FOX_1) && (g_fox <= FOX_5)) || (g_fox == FOX_DEMO))
-	{
-		g_on_air_interval = 60;
-		g_number_of_foxes = 5;
-		g_fox_id_offset = 0;
-		g_pattern_codespeed = 8;
-		g_id_interval = 60;
-		g_startclock_interval = 300;
-	}
-	else if(((g_fox >= SPRINT_S1) && (g_fox <= SPRINT_F5)) || (g_fox == SPRINT_DEMO))
-	{
-		g_on_air_interval = 12;
-		g_number_of_foxes = 5;
-		g_pattern_codespeed = ((g_fox == SPRINT_DEMO) || (g_fox <= SPRINT_S5)) ? 10 : 15;
-		g_fox_id_offset = g_fox <= SPRINT_S5 ? SPRINT_S1 - 1 : SPRINT_F1 - 1;
-		g_id_interval = 600;
-		g_startclock_interval = 120;
-	}
-
-	wdt_init(WD_HW_RESETS);
-
 #if COMPILE_FOR_ATMELSTUDIO7
 		while(1)
 		{
@@ -359,50 +282,6 @@ void doSynchronization(void);
 		}
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 }/*end setup */
-
-void __attribute__((optimize("O1"))) wdt_init(WDReset resetType)
-{
-	wdt_reset();
-
-	if(MCUSR & (1 << WDRF))     /* If a reset was caused by the Watchdog Timer perform any special operations */
-	{
-		MCUSR &= (1 << WDRF);   /* Clear the WDT reset flag */
-	}
-
-	if(resetType == WD_DISABLE)
-	{
-		/* Clear WDRF in MCUSR */
-		MCUSR &= ~(1 << WDRF);
-		/* Write logical one to WDCE and WDE */
-		/* Keep old prescaler setting to prevent unintentional
-		 *  time-out */
-		WDTCSR |= (1 << WDCE) | (1 << WDE);
-		/* Turn off WDT */
-		WDTCSR = 0x00;
-	}
-	else
-	{
-		if(resetType == WD_HW_RESETS)
-		{
-			WDTCSR |= (1 << WDCE) | (1 << WDE);
-			WDTCSR = (1 << WDP3) | (1 << WDIE) | (1 << WDE);    /* Enable WD interrupt every 4 seconds, and hardware resets */
-			/*	WDTCSR = (1 << WDP3) | (1 << WDP0) | (1 << WDIE) | (1 << WDE); // Enable WD interrupt every 8 seconds, and hardware resets */
-		}
-		else if(resetType == WD_SW_RESETS)
-		{
-			WDTCSR |= (1 << WDCE) | (1 << WDE);
-			/*	WDTCSR = (1 << WDP3) | (1 << WDIE); // Enable WD interrupt every 4 seconds (no HW reset)
-			 *	WDTCSR = (1 << WDP3) | (1 << WDP0)  | (1 << WDIE); // Enable WD interrupt every 8 seconds (no HW reset) */
-			WDTCSR = (1 << WDP1) | (1 << WDP2)  | (1 << WDIE);  /* Enable WD interrupt every 1 seconds (no HW reset) */
-		}
-		else
-		{
-			WDTCSR |= (1 << WDCE) | (1 << WDE);
-			WDTCSR = (1 << WDIE) | (1 << WDE);  /* Enable WD interrupt in 16ms, and hardware reset */
-		}
-	}
-}
-
 
 /***********************************************************************
  * Pin Change Interrupt 2 ISR
@@ -703,10 +582,12 @@ ISR( TIMER2_COMPB_vect )
 	{
 		blink_count_direction = 1;
 	}
+
 	if(blink_counter > BLINK_SHORT)
 	{
 		blink_count_direction = -1;
 	}
+
 	blink_counter += blink_count_direction;
 
 	if(blink_counter < 0)
@@ -801,7 +682,7 @@ ISR( TIMER2_COMPB_vect )
 
 				if(key)
 				{
-					if(g_enable_LEDs)
+					if(!g_LEDs_Timed_Out)
 					{
 						digitalWrite(PIN_LED, HIGH);    /*  LED */
 					}
@@ -817,7 +698,7 @@ ISR( TIMER2_COMPB_vect )
 		}
 		else
 		{
-			if(g_enable_LEDs && !g_sync_pin_stable)
+			if(!g_LEDs_Timed_Out && !g_sync_pin_stable)
 			{
 				digitalWrite(PIN_LED, key);     /*  LED */
 			}
@@ -880,7 +761,7 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 		id_countdown--;
 	}
 
-	if((g_seconds_since_sync % g_on_air_interval) == 0)
+	if(g_number_of_foxes && ((g_seconds_since_sync % g_on_air_interval) == 0))
 	{
 		g_fox_counter++;
 
@@ -896,6 +777,9 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 				pinMode(PIN_SYNC, OUTPUT);  /* Set sync pin as output low */
 				g_sync_enabled = FALSE;
 			}
+
+			g_LEDs_Timed_Out = TRUE;
+			digitalWrite(PIN_LED,OFF);
 		}
 		g_fox_transition = TRUE;
 		g_fox_seconds_into_interval = 0;
@@ -913,7 +797,7 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 	}
 	else
 	{
-		g_lastSeconds = 0x00;
+		g_lastSeconds = 0;
 	}
 }   /* end of Timer1 ISR */
 
@@ -924,7 +808,7 @@ SIGNAL(TIMER0_COMPA_vect)
 
 	toggle = !toggle;
 
-	if(g_audio_tone_on)
+	if(g_audio_tone_state)
 	{
 		if(toggle)
 		{
@@ -1001,7 +885,7 @@ void loop()
 		}
 		else
 		{
-			if(g_enable_LEDs)   /* below will flash LED when off cycle for a heartbeat indicator */
+			if(!g_LEDs_Timed_Out)   /* below will flash LED when off cycle for a heartbeat indicator */
 			{
 				if(g_blinky_time)
 				{
@@ -1037,14 +921,6 @@ void loop()
 			}
 		}
 
-/*		else if(g_seconds == 30)    / * Speed up code after 30 seconds * /
- *		{
- *			if((g_fox != BEACON) && (g_fox != FOXORING))
- *			{
- *				g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed * 2);
- *			}
- *		} */
-
 		if((g_fox == FOX_DEMO) || (g_fox == SPRINT_DEMO))
 		{
 			if((g_callsign_sent) && g_fox_transition)   /* Ensure we've begun the next minute before proceeding */
@@ -1075,12 +951,12 @@ void sendMorseTone(BOOL onOff)
 	if(!g_lastSeconds)
 	{
 		OCR0A = DEFAULT_TONE_FREQUENCY - g_fox_counter;
-		g_audio_tone_on = onOff;
+		g_audio_tone_state = onOff;
 	}
 	else
 	{
 		OCR0A = DEFAULT_TONE_FREQUENCY;
-		g_audio_tone_on = OFF;
+		g_audio_tone_state = OFF;
 	}
 }
 
@@ -1089,12 +965,12 @@ void playStartingTone(uint8_t toneFreq)
 	if(toneFreq > 0)
 	{
 		OCR0A = toneFreq;
-		g_audio_tone_on = ON;
+		g_audio_tone_state = ON;
 	}
 	else
 	{
 		OCR0A = DEFAULT_TONE_FREQUENCY;
-		g_audio_tone_on = OFF;
+		g_audio_tone_state = OFF;
 	}
 }
 
@@ -1112,16 +988,13 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 		{
 			case MESSAGE_RESET:
 			{
-				wdt_init(WD_FORCE_RESET);
-				while(1)
-				{
-					;
-				}
+				softwareReset();
 			}
 			break;
 
 			case MESSAGE_OVERRIDE_DIP:
 			{
+				FoxType holdFox = (FoxType)g_override_DIP_switches;
 				int c = (int)(lb_buff->fields[FIELD1][0]);
 
 				if(c)
@@ -1211,6 +1084,23 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 							c = CLAMP(SPECTATOR,x,SPRINT_F5);
 						}
 					}
+					else if(c == 'N')
+					{
+						char t = lb_buff->fields[FIELD2][0];
+
+						if(t == '2')
+						{
+							c = NO_CODE_START_TONES_2M;
+						}
+						else if(t == '5')
+						{
+							c = NO_CODE_START_TONES_5M;
+						}
+						else
+						{
+							c = BEACON;
+						}
+					}
 					else
 					{
 						c = atoi(lb_buff->fields[FIELD1]);
@@ -1221,6 +1111,10 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						g_override_DIP_switches = c;
 						g_fox = (FoxType)c;
 						saveAllEEPROM();
+						if(holdFox != g_fox)
+						{
+							doSynchronization();
+						}
 					}
 				}
 
@@ -1243,6 +1137,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					}
 
 					saveAllEEPROM();
+					g_LEDs_Timed_Out = !g_enable_LEDs;
 				}
 
 				sprintf(g_tempStr,"LED:%s\n",g_enable_LEDs ? "ON" : "OFF");
@@ -1289,11 +1184,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					eeprom_write_byte((uint8_t*)&ee_stationID_text,0xFF);
 				}
 
-				wdt_init(WD_FORCE_RESET);
-				while(1)
-				{
-					;
-				}
+				softwareReset();
 			}
 			break;
 
@@ -1567,7 +1458,7 @@ void setUpTemp(void)
 
 	ADCSRA |= (1 << ADEN);  /* enable the ADC */
 
-	delay(200);             /* wait for voltages to become stable. */
+	_delay_ms(200);         /* wait for voltages to become stable. */
 
 	ADCSRA |= (1 << ADSC);  /* Start the ADC */
 
@@ -1603,16 +1494,142 @@ float getTemp(void)
 }
 
 
-void doSynchronization(void)
+void doSynchronization()
 {
+	setupForFox();
 	cli();
-	TCNT1 = 0;  /* Initialize 1-second counter value to 0 */
+	/* Sync button pin change interrupt */
+	PCMSK2 = 0x00;
+	PCMSK2 = (1 << PCINT19);    /* Enable PCINT19 */
+	PCICR = 0x00;
+	PCICR = (1 << PCIE2);       /* Enable pin change interrupt 2 */
+	pinMode(PIN_SYNC,INPUT_PULLUP);
+	g_sync_enabled = TRUE;
+
+	TCNT1 = 0;                  /* Initialize 1-second counter value to 0 */
 	g_seconds_since_sync = 0;
 	g_fox_seconds_into_interval = 0;
 	g_sync_pin_stable = FALSE;
 	digitalWrite(PIN_LED,LOW);
-	g_on_the_air = 0;
+	g_on_the_air = FALSE;
 	g_fox_counter = 1;  /* Don't count on the 1-sec timer setting this in time */
 	sei();
 }
 
+void setupForFox()
+{
+	cli();
+	g_seconds_since_sync = 0;   /* Total elapsed time counter */
+	g_on_the_air       = FALSE; /* Controls transmitter Morse activity */
+	g_code_throttle    = 0;     /* Adjusts Morse code speed */
+	g_callsign_sent = FALSE;
+
+	g_on_air_interval = 0;
+	g_fox_seconds_into_interval = 0;
+	g_number_of_foxes = 0;
+	g_fox_transition = FALSE;
+	g_fox_id_offset = 0;
+	g_id_interval = 0;
+	g_time_to_ID = FALSE;
+	g_audio_tone_state = OFF;
+	sei();
+
+	while(initializeEEPROMVars())
+	{
+		;   /* Initialize variables stored in EEPROM */
+	}
+
+	g_LEDs_Timed_Out = !g_enable_LEDs;
+
+	if(g_override_DIP_switches)
+	{
+		g_fox = CLAMP(BEACON,(FoxType)g_override_DIP_switches,INVALID_FOX);
+		if(g_fox == INVALID_FOX)
+		{
+			g_fox = BEACON;
+		}
+	}
+	else                                    /* Read DIP Switches */
+	{
+		if(digitalRead(PIN_DIP_0) == LOW)   /*Lsb */
+		{
+			g_fox++;
+		}
+		if(digitalRead(PIN_DIP_1) == LOW)   /* middle bit */
+		{
+			g_fox += 2;
+		}
+		if(digitalRead(PIN_DIP_2) == LOW)   /* MSB */
+		{
+			g_fox += 4;
+		}
+	}
+
+	switch(g_fox)
+	{
+		case NO_CODE_START_TONES_2M:
+		{
+			g_startclock_interval = 120;
+			g_enable_start_timer = TRUE;
+		}
+		break;
+
+		case NO_CODE_START_TONES_5M:
+		{
+			g_startclock_interval = 300;
+			g_enable_start_timer = TRUE;
+		}
+		break;
+
+		case FOX_1:
+		case FOX_2:
+		case FOX_3:
+		case FOX_4:
+		case FOX_5:
+		case FOX_DEMO:
+		{
+			g_on_air_interval = 60;
+			g_number_of_foxes = 5;
+			g_fox_id_offset = 0;
+			g_pattern_codespeed = 8;
+			g_id_interval = 60;
+			g_startclock_interval = 300;
+		}
+		break;
+
+		case SPRINT_S1:
+		case SPRINT_F5:
+		case SPRINT_DEMO:
+		{
+			g_on_air_interval = 12;
+			g_number_of_foxes = 5;
+			g_pattern_codespeed = ((g_fox == SPRINT_DEMO) || (g_fox <= SPRINT_S5)) ? 10 : 15;
+			g_fox_id_offset = g_fox <= SPRINT_S5 ? SPRINT_S1 - 1 : SPRINT_F1 - 1;
+			g_id_interval = 600;
+			g_startclock_interval = 120;
+		}
+		break;
+
+/* case BEACON: */
+/* case SPECTATOR: */
+		default:
+		{
+			g_on_air_interval = 600;
+			g_number_of_foxes = 1;
+			g_pattern_codespeed = 8;
+			g_id_interval = 600;
+			g_startclock_interval = (g_fox == SPECTATOR) ? 120 : 300;
+		}
+		break;
+	}
+}
+
+void softwareReset()
+{
+	cli();
+	wdt_enable(WDTO_15MS);
+	while(1)
+	{
+		;
+	}
+}
