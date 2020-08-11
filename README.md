@@ -30,6 +30,8 @@
 <b>> STA [on|off]</b>  <= <i>* Turns on/off the starting tones function</i><br>
 <b>> STA</b>  <= <i>Displays the starting tones setting</i><br>
 <b>> TEM</b>  <= <i>Displays the processor's temperature in C</i><br>
+<b>> TXE [on|off]</b>  <= <i>* Turns on/off the transmitter</i><br>
+<b>> TXE</b>  <= <i>Displays the transmitter setting</i><br>
 <b>> VER</b>  <= <i>Displays the software version number</i></p></pre>
 
 <p>* These values get stored to EEPROM and are retained between power cycles. </p>
