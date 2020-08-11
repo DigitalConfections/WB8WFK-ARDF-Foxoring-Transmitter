@@ -70,7 +70,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.18"
+#define SW_REVISION "0.19"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -157,7 +157,7 @@ typedef enum
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xB4
+#define EEPROM_INITIALIZED_FLAG 0xB5
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
@@ -177,6 +177,7 @@ typedef enum
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
 #define EEPROM_ENABLE_LEDS_DEFAULT 1
 #define EEPROM_ENABLE_STARTTIMER_DEFAULT 1
+#define EEPROM_ENABLE_TRANSMITTER_DEFAULT 1
 
 #ifndef BOOL
 	typedef uint8_t BOOL;
