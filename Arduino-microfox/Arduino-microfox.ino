@@ -92,7 +92,7 @@ volatile BOOL g_sync_enabled = TRUE;
 		a = static_cast < FoxType > (a + b);    /* static_cast required because enum + int -> int */
 		return( a);
 	}
-#endif  /* COMPILE_FOR_ATMELSTUDIO7 */
+ #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 
 
 /***********************************************************************
@@ -113,6 +113,7 @@ static uint8_t EEMEM ee_override_DIP_switches;
 static uint8_t EEMEM ee_enable_LEDs;
 static int16_t EEMEM ee_temp_calibration;
 static uint8_t EEMEM ee_enable_start_timer;
+static uint8_t EEMEM ee_enable_transmitter;
 
 static char g_messages_text[2][MAX_PATTERN_TEXT_LENGTH + 1] = { "\0", "\0" };
 static volatile uint8_t g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
@@ -124,6 +125,7 @@ static volatile int16_t g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
 static volatile uint8_t g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
 static volatile uint8_t g_enable_LEDs;
 static volatile uint8_t g_enable_start_timer;
+static volatile uint8_t g_enable_transmitter;
 
 static char g_tempStr[TEMP_STRING_LENGTH] = { '\0' };
 static volatile uint8_t g_LEDs_Timed_Out = FALSE;
@@ -152,7 +154,7 @@ void softwareReset(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -183,7 +185,7 @@ void softwareReset(void);
 	pinMode(A2, INPUT_PULLUP);
 	pinMode(A3, INPUT_PULLUP);
 #if !CAL_SIGNAL_ON_PD3
-	pinMode(PIN_CAL_OUT, INPUT_PULLUP);
+		pinMode(PIN_CAL_OUT, INPUT_PULLUP);
 #endif
 
 	/* set timer1 interrupt at 1Hz */
@@ -262,6 +264,8 @@ void softwareReset(void);
 	sprintf(g_tempStr, "  LED: %s\n", g_enable_LEDs ? "ON" : "OFF");
 	lb_send_string(g_tempStr, TRUE);
 	sprintf(g_tempStr, "  STA: %s\n", g_enable_start_timer ? "ON" : "OFF");
+	lb_send_string(g_tempStr, TRUE);
+	sprintf(g_tempStr, "  TXE: %s\n", g_enable_transmitter ? "ON" : "OFF");
 	lb_send_string(g_tempStr, TRUE);
 	lb_send_NewPrompt();
 
@@ -687,7 +691,10 @@ ISR( TIMER2_COMPB_vect )
 						digitalWrite(PIN_LED, HIGH);    /*  LED */
 					}
 
-					digitalWrite(PIN_MORSE_KEY, HIGH);  /* TX key line */
+					if(g_enable_transmitter)
+					{
+						digitalWrite(PIN_MORSE_KEY, HIGH);  /* TX key line */
+					}
 				}
 
 				if(playMorse)
@@ -700,11 +707,16 @@ ISR( TIMER2_COMPB_vect )
 		{
 			if(!g_LEDs_Timed_Out && !g_sync_pin_stable)
 			{
-				digitalWrite(PIN_LED, key);     /*  LED */
+				digitalWrite(PIN_LED, key); /*  LED */
 			}
 
-			digitalWrite(PIN_MORSE_KEY, key);   /* TX key line */
+			if(g_enable_transmitter)
+			{
+				digitalWrite(PIN_MORSE_KEY, key);   /* TX key line */
+			}
+
 			codeInc = g_code_throttle;
+
 			if(playMorse)
 			{
 				sendMorseTone(key);
@@ -718,9 +730,10 @@ ISR( TIMER2_COMPB_vect )
 			key = OFF;
 			if(!g_sync_pin_stable)
 			{
-				digitalWrite(PIN_LED, LOW);     /*  LED Off */
+				digitalWrite(PIN_LED, OFF);     /*  LED Off */
 			}
-			digitalWrite(PIN_MORSE_KEY, LOW);   /* TX key line */
+
+			digitalWrite(PIN_MORSE_KEY, OFF);   /* TX key line */
 		}
 
 		if(playMorse)
@@ -779,7 +792,7 @@ ISR(TIMER1_COMPA_vect)              /*timer1 interrupt 1Hz */
 			}
 
 			g_LEDs_Timed_Out = TRUE;
-			digitalWrite(PIN_LED,OFF);
+			digitalWrite(PIN_LED, OFF);
 		}
 		g_fox_transition = TRUE;
 		g_fox_seconds_into_interval = 0;
@@ -1166,6 +1179,30 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 			}
 			break;
 
+			case MESSAGE_TRANSMITTER_ENABLE:
+			{
+				if(lb_buff->fields[FIELD1][0])
+				{
+					if((lb_buff->fields[FIELD1][1] == 'F') || (lb_buff->fields[FIELD1][0] == '0'))
+					{
+						cli();
+						g_enable_transmitter = FALSE;
+						digitalWrite(PIN_MORSE_KEY, OFF);
+						sei();
+					}
+					else
+					{
+						g_enable_transmitter = TRUE;
+					}
+
+					saveAllEEPROM();
+				}
+
+				sprintf(g_tempStr,"TXE:%s\n",g_enable_transmitter ? "ON" : "OFF");
+				lb_send_string(g_tempStr,FALSE);
+			}
+			break;
+
 			case MESSAGE_GO:
 			{
 				doSynchronization();
@@ -1352,6 +1389,7 @@ BOOL initializeEEPROMVars()
 		g_override_DIP_switches = eeprom_read_byte(&ee_override_DIP_switches);
 		g_enable_LEDs = eeprom_read_byte(&ee_enable_LEDs);
 		g_enable_start_timer = eeprom_read_byte(&ee_enable_start_timer);
+		g_enable_transmitter = eeprom_read_byte(&ee_enable_transmitter);
 
 		for(i = 0; i < 20; i++)
 		{
@@ -1382,6 +1420,7 @@ BOOL initializeEEPROMVars()
 		g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
 		g_enable_LEDs = EEPROM_ENABLE_LEDS_DEFAULT;
 		g_enable_start_timer = EEPROM_ENABLE_STARTTIMER_DEFAULT;
+		g_enable_transmitter = EEPROM_ENABLE_TRANSMITTER_DEFAULT;
 		strncpy(g_messages_text[STATION_ID],EEPROM_STATION_ID_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
 		strncpy(g_messages_text[PATTERN_TEXT],EEPROM_PATTERN_TEXT_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
 		saveAllEEPROM();
@@ -1411,6 +1450,7 @@ void saveAllEEPROM()
 	eeprom_update_byte(&ee_override_DIP_switches,g_override_DIP_switches);
 	eeprom_update_byte(&ee_enable_LEDs,g_enable_LEDs);
 	eeprom_update_byte(&ee_enable_start_timer,g_enable_start_timer);
+	eeprom_update_byte(&ee_enable_transmitter,g_enable_transmitter);
 
 	for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
 	{
