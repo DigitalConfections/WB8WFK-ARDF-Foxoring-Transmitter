@@ -50,7 +50,8 @@ static const char textHelp[][23] = { "\nCommands:\n",
 									 "  SPD - ID code speed\n",
 									 "  STA - Start tones\n",
 									 "  TEM - Temperature\n",
-									 "  VER - S/W version\n" };
+									 "  VER - S/W version\n",
+									 "  TXE - Tx enable" };
 
 static char g_tempMsgBuff[LINKBUS_MAX_MSG_LENGTH];
 

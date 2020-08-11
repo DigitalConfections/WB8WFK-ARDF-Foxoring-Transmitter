@@ -100,7 +100,8 @@ typedef enum
 	MESSAGE_SET_STATION_ID = 'I' * 10 + 'D',            /* Sets amateur radio callsign text */
 	MESSAGE_GO = 'G' * 10 + 'O',                        /* Synchronizes clock */
 	MESSAGE_CODE_SPEED = 'S' * 100 + 'P' * 10 + 'D',    /* Set Morse code speeds */
-	MESSAGE_STARTTONES_ENABLE = 'S' * 100 + 'T' * 10 + 'A', /* Enables the Starting Timer Tones */
+	MESSAGE_STARTTONES_ENABLE = 'S' * 100 + 'T' * 10 + 'A', /* Enables/disables the Starting Timer Tones */
+	MESSAGE_TRANSMITTER_ENABLE = 'T' * 100 + 'X' * 10 + 'E', /* Enables/disables transmitter keying */
 
 	/* UTILITY MESSAGES */
 	MESSAGE_RESET = 'R' * 100 + 'S' * 10 + 'T',         /* Processor reset */
