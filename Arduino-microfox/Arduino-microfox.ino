@@ -69,6 +69,7 @@ volatile int g_fox_id_offset = 0;
 volatile int g_id_interval = 0;
 volatile BOOL g_time_to_ID = FALSE;
 volatile int g_startclock_interval = 60;
+volatile int g_fox_tone_offset = 1;
 
 volatile BOOL g_audio_tone_state = FALSE;
 volatile uint8_t g_lastSeconds = 0x00;
@@ -895,6 +896,7 @@ void loop()
 			g_on_the_air = TRUE;
 			g_callsign_sent = FALSE;
 			g_fox_transition = FALSE;
+			g_fox_tone_offset = g_fox_counter;
 		}
 		else
 		{
@@ -963,7 +965,7 @@ void sendMorseTone(BOOL onOff)
 {
 	if(!g_lastSeconds)
 	{
-		OCR0A = DEFAULT_TONE_FREQUENCY - g_fox_counter;
+		OCR0A = DEFAULT_TONE_FREQUENCY - g_fox_tone_offset;
 		g_audio_tone_state = onOff;
 	}
 	else
