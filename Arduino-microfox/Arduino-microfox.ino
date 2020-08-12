@@ -170,12 +170,6 @@ void softwareReset(void);
 	pinMode(PIN_AUDIO_OUT, OUTPUT);
 	digitalWrite(PIN_AUDIO_OUT, OFF);
 
-	pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
-	pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
-	pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
-	pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
-	digitalWrite(PIN_LED, OFF);         /* Turn off led sync switch is now open */
-
 	/* Set unused pins as outputs pulled high */
 	pinMode(PIN_UNUSED_7, INPUT_PULLUP);
 	pinMode(PIN_UNUSED_8, INPUT_PULLUP);
@@ -296,7 +290,7 @@ void softwareReset(void);
  ************************************************************************/
 ISR(PCINT2_vect)
 {
-	BOOL pinVal = digitalRead(3);
+	BOOL pinVal = digitalRead(PIN_SYNC);
 
 	if(pinVal)  /* Sync is high */
 	{
@@ -1554,13 +1548,19 @@ void doSynchronization()
 	g_sync_pin_stable = FALSE;
 	digitalWrite(PIN_LED,LOW);
 	g_on_the_air = FALSE;
-	g_fox_counter = 1;  /* Don't count on the 1-sec timer setting this in time */
+	g_fox_counter = 1;  /* Don't count on the 1-sec timer resetting this quickly enough */
 	sei();
 }
 
 void setupForFox()
 {
 	cli();
+	pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
+	pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
+	pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
+	pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
+	digitalWrite(PIN_LED, OFF);         /* Turn off led sync switch is now open */
+
 	g_seconds_since_sync = 0;   /* Total elapsed time counter */
 	g_on_the_air       = FALSE; /* Controls transmitter Morse activity */
 	g_code_throttle    = 0;     /* Adjusts Morse code speed */
@@ -1593,14 +1593,18 @@ void setupForFox()
 	}
 	else                                    /* Read DIP Switches */
 	{
+		g_fox = (FoxType)0;
+
 		if(digitalRead(PIN_DIP_0) == LOW)   /*Lsb */
 		{
-			g_fox++;
+			g_fox += 1;
 		}
+
 		if(digitalRead(PIN_DIP_1) == LOW)   /* middle bit */
 		{
 			g_fox += 2;
 		}
+
 		if(digitalRead(PIN_DIP_2) == LOW)   /* MSB */
 		{
 			g_fox += 4;
