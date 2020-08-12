@@ -155,7 +155,7 @@ void softwareReset(void);
 {
 	while(initializeEEPROMVars())
 	{
-		;                                                                                                                                                                                                                                                                                                                                                                                                                                                                   /* Initialize variables stored in EEPROM */
+		;                                                                                                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
 	}
 
 	setUpTemp();
@@ -263,16 +263,6 @@ void softwareReset(void);
 	sprintf(g_tempStr, "  TXE: %s\n", g_enable_transmitter ? "ON" : "OFF");
 	lb_send_string(g_tempStr, TRUE);
 	lb_send_NewPrompt();
-
-#if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
-		/* Disable pull-ups to save power */
-		pinMode(PIN_DIP_0, INPUT);  /* fox switch LSB */
-		pinMode(PIN_DIP_1, INPUT);  /* fox switch middle bit */
-		pinMode(PIN_DIP_2, INPUT);  /* fox switch MSB */
-		pinMode(PIN_DIP_0, OUTPUT);
-		pinMode(PIN_DIP_1, OUTPUT);
-		pinMode(PIN_DIP_2, OUTPUT);
-#endif  /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
 #if COMPILE_FOR_ATMELSTUDIO7
 		while(1)
@@ -1139,6 +1129,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					if((lb_buff->fields[FIELD1][1] == 'F') || (lb_buff->fields[FIELD1][0] == '0'))
 					{
 						g_enable_LEDs = FALSE;
+						digitalWrite(PIN_LED, OFF);     /*  LED Off */
 					}
 					else
 					{
@@ -1183,7 +1174,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					{
 						cli();
 						g_enable_transmitter = FALSE;
-						digitalWrite(PIN_MORSE_KEY, OFF);
+						digitalWrite(PIN_MORSE_KEY,OFF);
 						sei();
 					}
 					else
@@ -1375,7 +1366,9 @@ BOOL initializeEEPROMVars()
 	BOOL flagNotSet = FALSE;
 	uint8_t i;
 
-	if(eeprom_read_byte(&ee_interface_eeprom_initialization_flag) == EEPROM_INITIALIZED_FLAG)
+	uint8_t initialization_flag = eeprom_read_byte(&ee_interface_eeprom_initialization_flag);
+
+	if(initialization_flag == EEPROM_INITIALIZED_FLAG)
 	{
 		g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM,eeprom_read_byte(&ee_pattern_codespeed),MAX_CODE_SPEED_WPM);
 		g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM,eeprom_read_byte(&ee_id_codespeed),MAX_CODE_SPEED_WPM);
@@ -1387,7 +1380,7 @@ BOOL initializeEEPROMVars()
 		g_enable_start_timer = eeprom_read_byte(&ee_enable_start_timer);
 		g_enable_transmitter = eeprom_read_byte(&ee_enable_transmitter);
 
-		for(i = 0; i < 20; i++)
+		for(i = 0; i < MAX_PATTERN_TEXT_LENGTH; i++)
 		{
 			g_messages_text[STATION_ID][i] = (char)eeprom_read_byte((uint8_t*)(&ee_stationID_text[i]));
 			if(!g_messages_text[STATION_ID][i])
@@ -1396,7 +1389,7 @@ BOOL initializeEEPROMVars()
 			}
 		}
 
-		for(i = 0; i < 20; i++)
+		for(i = 0; i < MAX_PATTERN_TEXT_LENGTH; i++)
 		{
 			g_messages_text[PATTERN_TEXT][i] = (char)eeprom_read_byte((uint8_t*)(&ee_pattern_text[i]));
 			if(!g_messages_text[PATTERN_TEXT][i])
@@ -1411,13 +1404,34 @@ BOOL initializeEEPROMVars()
 		g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
 		g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
 		g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;
-		g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
+		if(initialization_flag == 0xFF)
+		{
+			g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
+		}
+		else
+		{
+			g_clock_calibration = eeprom_read_word(&ee_clock_calibration);
+		}
 		g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
 		g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
 		g_enable_LEDs = EEPROM_ENABLE_LEDS_DEFAULT;
 		g_enable_start_timer = EEPROM_ENABLE_STARTTIMER_DEFAULT;
 		g_enable_transmitter = EEPROM_ENABLE_TRANSMITTER_DEFAULT;
-		strncpy(g_messages_text[STATION_ID],EEPROM_STATION_ID_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
+		if(initialization_flag == 0xFF)
+		{
+			strncpy(g_messages_text[STATION_ID],EEPROM_STATION_ID_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
+		}
+		else
+		{
+			for(i = 0; i < MAX_PATTERN_TEXT_LENGTH; i++)
+			{
+				g_messages_text[STATION_ID][i] = (char)eeprom_read_byte((uint8_t*)(&ee_stationID_text[i]));
+				if(!g_messages_text[STATION_ID][i])
+				{
+					break;
+				}
+			}
+		}
 		strncpy(g_messages_text[PATTERN_TEXT],EEPROM_PATTERN_TEXT_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
 		saveAllEEPROM();
 		eeprom_write_byte(&ee_interface_eeprom_initialization_flag,EEPROM_INITIALIZED_FLAG);
@@ -1432,7 +1446,6 @@ BOOL initializeEEPROMVars()
 void saveAllEEPROM()
 {
 	uint8_t i;
-	BOOL initialize = TRUE;
 
 	eeprom_update_byte(&ee_id_codespeed,g_id_codespeed);
 	eeprom_update_byte(&ee_pattern_codespeed,g_pattern_codespeed);
@@ -1448,16 +1461,7 @@ void saveAllEEPROM()
 	eeprom_update_byte(&ee_enable_start_timer,g_enable_start_timer);
 	eeprom_update_byte(&ee_enable_transmitter,g_enable_transmitter);
 
-	for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
-	{
-		if(eeprom_read_byte((uint8_t*)&ee_stationID_text) != 0xFF)
-		{
-			initialize = FALSE;
-			break;
-		}
-	}
-
-	if(initialize)
+	if(eeprom_read_byte((uint8_t*)&ee_stationID_text[0]) == 0xFF)   /* Never overwrite a valid ID */
 	{
 		for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
 		{
@@ -1555,15 +1559,15 @@ void doSynchronization()
 void setupForFox()
 {
 	cli();
-	pinMode(PIN_SYNC, INPUT_PULLUP);    /* Sync button */
-	pinMode(PIN_DIP_0, INPUT_PULLUP);   /* DIP switch LSB */
-	pinMode(PIN_DIP_1, INPUT_PULLUP);   /* DIP switch middle bit */
-	pinMode(PIN_DIP_2, INPUT_PULLUP);   /* DIP switch MSB */
-	digitalWrite(PIN_LED, OFF);         /* Turn off led sync switch is now open */
+	pinMode(PIN_SYNC,INPUT_PULLUP);     /* Sync button */
+	pinMode(PIN_DIP_0,INPUT_PULLUP);    /* DIP switch LSB */
+	pinMode(PIN_DIP_1,INPUT_PULLUP);    /* DIP switch middle bit */
+	pinMode(PIN_DIP_2,INPUT_PULLUP);    /* DIP switch MSB */
+	digitalWrite(PIN_LED,OFF);          /* Turn off led sync switch is now open */
 
-	g_seconds_since_sync = 0;   /* Total elapsed time counter */
-	g_on_the_air       = FALSE; /* Controls transmitter Morse activity */
-	g_code_throttle    = 0;     /* Adjusts Morse code speed */
+	g_seconds_since_sync = 0;           /* Total elapsed time counter */
+	g_on_the_air       = FALSE;         /* Controls transmitter Morse activity */
+	g_code_throttle    = 0;             /* Adjusts Morse code speed */
 	g_callsign_sent = FALSE;
 
 	g_on_air_interval = 0;
@@ -1595,7 +1599,7 @@ void setupForFox()
 	{
 		g_fox = (FoxType)0;
 
-		if(digitalRead(PIN_DIP_0) == LOW)   /*Lsb */
+		if(digitalRead(PIN_DIP_0) == LOW)   /* LSB */
 		{
 			g_fox += 1;
 		}
@@ -1610,6 +1614,16 @@ void setupForFox()
 			g_fox += 4;
 		}
 	}
+
+#if !HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED
+		/* Disable pull-ups to save power */
+		pinMode(PIN_DIP_0,INPUT);   /* fox switch LSB */
+		pinMode(PIN_DIP_1,INPUT);   /* fox switch middle bit */
+		pinMode(PIN_DIP_2,INPUT);   /* fox switch MSB */
+		pinMode(PIN_DIP_0,OUTPUT);  /* Don't allow pin to float */
+		pinMode(PIN_DIP_1,OUTPUT);  /* Don't allow pin to float */
+		pinMode(PIN_DIP_2,OUTPUT);  /* Don't allow pin to float */
+#endif  /* HARDWARE_EXTERNAL_DIP_PULLUPS_INSTALLED */
 
 	switch(g_fox)
 	{
