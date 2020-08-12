@@ -105,10 +105,7 @@ volatile BOOL g_sync_enabled = TRUE;
  ************************************************************************/
 static uint8_t EEMEM ee_interface_eeprom_initialization_flag = EEPROM_UNINITIALIZED;
 static char EEMEM ee_stationID_text[MAX_PATTERN_TEXT_LENGTH + 1];
-static char EEMEM ee_pattern_text[MAX_PATTERN_TEXT_LENGTH + 1];
-static uint8_t EEMEM ee_pattern_codespeed;
 static uint8_t EEMEM ee_id_codespeed;
-static uint16_t EEMEM ee_ID_time;
 static uint16_t EEMEM ee_clock_calibration;
 static uint8_t EEMEM ee_override_DIP_switches;
 static uint8_t EEMEM ee_enable_LEDs;
@@ -120,7 +117,6 @@ static char g_messages_text[2][MAX_PATTERN_TEXT_LENGTH + 1] = { "\0", "\0" };
 static volatile uint8_t g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
 static volatile uint8_t g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
 static volatile uint16_t g_time_needed_for_ID = 0;
-static volatile int16_t g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;  /* amount of time between ID/callsign transmissions */
 static volatile uint16_t g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
 static volatile int16_t g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
 static volatile uint8_t g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
@@ -134,8 +130,7 @@ static volatile uint8_t g_LEDs_Timed_Out = FALSE;
  * Function Prototypes
  */
 void handleLinkBusMsgs(void);
-BOOL initializeEEPROMVars(void);
-void saveAllEEPROM(void);
+void initializeEEPROMVars(BOOL resetAll);
 float getTemp(void);
 uint16_t readADC();
 void setUpTemp(void);
@@ -146,6 +141,19 @@ void doSynchronization(void);
 void setupForFox(void);
 void softwareReset(void);
 
+#if USE_WDT_RESET
+uint8_t mcusr_copy __attribute__ ((section (".noinit")));
+void disable_wdt(void) \
+     __attribute__((naked)) \
+     __attribute__((section(".init3")));
+void disable_wdt(void) {
+  mcusr_copy = MCUSR;
+  MCUSR = 0x00;
+  wdt_disable();
+}
+#endif // USE_WDT_RESET
+
+
 #if COMPILE_FOR_ATMELSTUDIO7
 	void loop(void);
 	int main(void)
@@ -153,11 +161,7 @@ void softwareReset(void);
 	void setup()
 #endif  /* COMPILE_FOR_ATMELSTUDIO7 */
 {
-	while(initializeEEPROMVars())
-	{
-		;                                                                                                                                                                                                                                                                                                                                                                                                                                                                           /* Initialize variables stored in EEPROM */
-	}
-
+	initializeEEPROMVars(FALSE);
 	setUpTemp();
 
 	cli();                          /*stop interrupts for setup */
@@ -657,10 +661,6 @@ ISR( TIMER2_COMPB_vect )
 
 				if(!repeat && finished) /* ID has completed, so resume pattern */
 				{
-/*					g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
- *					repeat = TRUE;
- *					makeMorse(g_messages_text[PATTERN_TEXT], &repeat, NULL);
- *					key = makeMorse(NULL, &repeat, &finished); */
 					key = OFF;
 					g_callsign_sent = TRUE;
 					if(playMorse)
@@ -1109,7 +1109,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					{
 						g_override_DIP_switches = c;
 						g_fox = (FoxType)c;
-						saveAllEEPROM();
+						eeprom_update_byte(&ee_override_DIP_switches,g_override_DIP_switches);
 						if(holdFox != g_fox)
 						{
 							doSynchronization();
@@ -1129,14 +1129,14 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 					if((lb_buff->fields[FIELD1][1] == 'F') || (lb_buff->fields[FIELD1][0] == '0'))
 					{
 						g_enable_LEDs = FALSE;
-						digitalWrite(PIN_LED, OFF);     /*  LED Off */
+						digitalWrite(PIN_LED,OFF);  /*  LED Off */
 					}
 					else
 					{
 						g_enable_LEDs = TRUE;
 					}
 
-					saveAllEEPROM();
+					eeprom_update_byte(&ee_enable_LEDs,g_enable_LEDs);
 					g_LEDs_Timed_Out = !g_enable_LEDs;
 				}
 
@@ -1158,7 +1158,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						g_enable_start_timer = TRUE;
 					}
 
-					saveAllEEPROM();
+					eeprom_update_byte(&ee_enable_start_timer,g_enable_start_timer);
 				}
 
 				sprintf(g_tempStr,"STA:%s\n",g_enable_start_timer ? "ON" : "OFF");
@@ -1182,7 +1182,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						g_enable_transmitter = TRUE;
 					}
 
-					saveAllEEPROM();
+					eeprom_update_byte(&ee_enable_transmitter,g_enable_transmitter);
 				}
 
 				sprintf(g_tempStr,"TXE:%s\n",g_enable_transmitter ? "ON" : "OFF");
@@ -1199,15 +1199,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 
 			case MESSAGE_FACTORY_RESET:
 			{
-				uint8_t flag = EEPROM_INITIALIZED_FLAG + 1;
-				eeprom_write_byte(&ee_interface_eeprom_initialization_flag,flag);
-				g_clock_calibration = 0xFFFF;
-				eeprom_update_word(&ee_clock_calibration,g_clock_calibration);
-				for(uint8_t i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
-				{
-					eeprom_write_byte((uint8_t*)&ee_stationID_text,0xFF);
-				}
-
+				initializeEEPROMVars(TRUE);
 				softwareReset();
 			}
 			break;
@@ -1271,42 +1263,22 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 
 			case MESSAGE_CODE_SPEED:
 			{
-				uint8_t speed = g_pattern_codespeed;
-
 				if(lb_buff->fields[FIELD1][0] == 'I')
 				{
 					if(lb_buff->fields[FIELD2][0])
 					{
-						speed = atol(lb_buff->fields[FIELD2]);
+						uint8_t speed = atol(lb_buff->fields[FIELD2]);
 						g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM,speed,MAX_CODE_SPEED_WPM);
+						eeprom_update_byte(&ee_id_codespeed,g_id_codespeed);
 
 						if(g_messages_text[STATION_ID][0])
 						{
 							g_time_needed_for_ID = (500 + timeRequiredToSendStrAtWPM(g_messages_text[STATION_ID],g_id_codespeed)) / 1000;
 						}
-
-						saveAllEEPROM();
 					}
 				}
-				/*
-				 *  else if(lb_buff->fields[FIELD1][0] == 'P')
-				 *  {
-				 *       if(lb_buff->fields[FIELD2][0])
-				 *       {
-				 *               speed = atol(lb_buff->fields[FIELD2]);
-				 *               g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM, speed, MAX_CODE_SPEED_WPM);
-				 *               g_code_throttle = THROTTLE_VAL_FROM_WPM(g_pattern_codespeed);
-				 *
-				 *               saveAllEEPROM();
-				 *       }
-				 *  }
-				 */
 				sprintf(g_tempStr,"ID:  %d wpm\n",g_id_codespeed);
 				lb_send_string(g_tempStr,FALSE);
-				/*
-				 *  sprintf(g_tempStr, "Pat: %d wpm\n", g_pattern_codespeed);
-				 *  lb_send_string(g_tempStr, FALSE);
-				 */
 			}
 			break;
 
@@ -1328,7 +1300,7 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 						if((v > -2000) && (v < 2000))
 						{
 							g_temp_calibration = v;
-							saveAllEEPROM();
+							eeprom_update_word((uint16_t*)&ee_temp_calibration,(uint16_t)g_temp_calibration);
 						}
 					}
 
@@ -1361,18 +1333,15 @@ void __attribute__((optimize("O0"))) handleLinkBusMsgs()
 /*
  * Set non-volatile variables to their values stored in EEPROM
  */
-BOOL initializeEEPROMVars()
+void initializeEEPROMVars(BOOL resetAll)
 {
-	BOOL flagNotSet = FALSE;
 	uint8_t i;
 
 	uint8_t initialization_flag = eeprom_read_byte(&ee_interface_eeprom_initialization_flag);
 
-	if(initialization_flag == EEPROM_INITIALIZED_FLAG)
+	if(!resetAll && (initialization_flag == EEPROM_INITIALIZED_FLAG)) /* EEPROM is up to date */
 	{
-		g_pattern_codespeed = CLAMP(MIN_CODE_SPEED_WPM,eeprom_read_byte(&ee_pattern_codespeed),MAX_CODE_SPEED_WPM);
 		g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM,eeprom_read_byte(&ee_id_codespeed),MAX_CODE_SPEED_WPM);
-		g_ID_period_seconds = eeprom_read_word(&ee_ID_time);
 		g_clock_calibration = eeprom_read_word(&ee_clock_calibration);
 		g_temp_calibration = (int16_t)eeprom_read_word((uint16_t*)&ee_temp_calibration);
 		g_override_DIP_switches = eeprom_read_byte(&ee_override_DIP_switches);
@@ -1388,38 +1357,89 @@ BOOL initializeEEPROMVars()
 				break;
 			}
 		}
-
-		for(i = 0; i < MAX_PATTERN_TEXT_LENGTH; i++)
-		{
-			g_messages_text[PATTERN_TEXT][i] = (char)eeprom_read_byte((uint8_t*)(&ee_pattern_text[i]));
-			if(!g_messages_text[PATTERN_TEXT][i])
-			{
-				break;
-			}
-		}
 	}
-	else
+	else /* EEPROM is missing some updates */
 	{
-		flagNotSet = TRUE;
-		g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
-		g_pattern_codespeed = EEPROM_PATTERN_CODE_SPEED_DEFAULT;
-		g_ID_period_seconds = EEPROM_ID_TIME_INTERVAL_DEFAULT;
-		if(initialization_flag == 0xFF)
+		if(resetAll || (eeprom_read_byte(&ee_id_codespeed) == 0xFF))
+		{
+			g_id_codespeed = EEPROM_ID_CODE_SPEED_DEFAULT;
+			eeprom_update_byte(&ee_id_codespeed,g_id_codespeed);
+		}
+		else
+		{
+			g_id_codespeed = CLAMP(MIN_CODE_SPEED_WPM,eeprom_read_byte(&ee_id_codespeed),MAX_CODE_SPEED_WPM);
+		}
+
+		if(resetAll || (eeprom_read_word(&ee_clock_calibration) == 0xFFFF))
 		{
 			g_clock_calibration = EEPROM_CLOCK_CALIBRATION_DEFAULT;
+			eeprom_update_word(&ee_clock_calibration,g_clock_calibration); /* Calibration only gets set by a serial command */
 		}
 		else
 		{
 			g_clock_calibration = eeprom_read_word(&ee_clock_calibration);
 		}
-		g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
-		g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
-		g_enable_LEDs = EEPROM_ENABLE_LEDS_DEFAULT;
-		g_enable_start_timer = EEPROM_ENABLE_STARTTIMER_DEFAULT;
-		g_enable_transmitter = EEPROM_ENABLE_TRANSMITTER_DEFAULT;
-		if(initialization_flag == 0xFF)
+
+		if(resetAll || ((uint16_t)eeprom_read_word((uint16_t*)&ee_temp_calibration) == 0xFFFF))
 		{
+			g_temp_calibration = EEPROM_TEMP_CALIBRATION_DEFAULT;
+			eeprom_update_word((uint16_t*)&ee_temp_calibration,(uint16_t)g_temp_calibration);
+		}
+		else
+		{
+			g_temp_calibration = (int16_t)eeprom_read_word((uint16_t*)&ee_temp_calibration);
+		}
+
+		if(resetAll || (eeprom_read_byte(&ee_override_DIP_switches) == 0xFF))
+		{
+			g_override_DIP_switches = EEPROM_OVERRIDE_DIP_SW_DEFAULT;
+			eeprom_update_byte(&ee_override_DIP_switches,g_override_DIP_switches);  /* Only gets set by a serial command */
+		}
+		else
+		{
+			g_override_DIP_switches = eeprom_read_byte(&ee_override_DIP_switches);
+		}
+
+		if(resetAll || (eeprom_read_byte(&ee_enable_LEDs) == 0xFF))
+		{
+			g_enable_LEDs = EEPROM_ENABLE_LEDS_DEFAULT;
+			eeprom_update_byte(&ee_enable_LEDs,g_enable_LEDs);  /* Only gets set by a serial command */
+		}
+		else
+		{
+			g_enable_LEDs = eeprom_read_byte(&ee_enable_LEDs);
+		}
+
+		if(resetAll || (eeprom_read_byte(&ee_enable_start_timer) == 0xFF))
+		{
+			g_enable_start_timer = EEPROM_ENABLE_STARTTIMER_DEFAULT;
+			eeprom_update_byte(&ee_enable_start_timer,g_enable_start_timer);  /* Only gets set by a serial command */
+		}
+		else
+		{
+			g_enable_start_timer = eeprom_read_byte(&ee_enable_start_timer);
+		}
+
+		if(resetAll || (eeprom_read_byte(&ee_enable_transmitter) == 0xFF))
+		{
+			g_enable_transmitter = EEPROM_ENABLE_TRANSMITTER_DEFAULT;
+			eeprom_update_byte(&ee_enable_transmitter,g_enable_transmitter);  /* Only gets set by a serial command */
+		}
+		else
+		{
+			g_enable_transmitter = eeprom_read_byte(&ee_enable_transmitter);
+		}
+
+		if(resetAll || (eeprom_read_byte((uint8_t*)(&ee_stationID_text[0])) == 0xFF))
+		{
+			uint16_t i;
 			strncpy(g_messages_text[STATION_ID],EEPROM_STATION_ID_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
+
+			for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++) /* Only gets set by a serial command */
+			{
+				eeprom_update_byte((uint8_t*)&ee_stationID_text[i],(uint8_t)g_messages_text[STATION_ID][i]);
+			}
+			eeprom_update_byte((uint8_t*)&ee_stationID_text[i],0);
 		}
 		else
 		{
@@ -1432,52 +1452,13 @@ BOOL initializeEEPROMVars()
 				}
 			}
 		}
-		strncpy(g_messages_text[PATTERN_TEXT],EEPROM_PATTERN_TEXT_DEFAULT,MAX_PATTERN_TEXT_LENGTH);
-		saveAllEEPROM();
+
 		eeprom_write_byte(&ee_interface_eeprom_initialization_flag,EEPROM_INITIALIZED_FLAG);
 	}
 
-	return(flagNotSet);
+	return;
 }
 
-/*
- * Save all changed non-volatile values to EEPROM
- */
-void saveAllEEPROM()
-{
-	uint8_t i;
-
-	eeprom_update_byte(&ee_id_codespeed,g_id_codespeed);
-	eeprom_update_byte(&ee_pattern_codespeed,g_pattern_codespeed);
-	eeprom_update_word(&ee_ID_time,g_ID_period_seconds);
-	uint16_t x = eeprom_read_word(&ee_clock_calibration);
-	if(x == 0xFFFF) /* Never overwrite a valid calibration value */
-	{
-		eeprom_update_word(&ee_clock_calibration,g_clock_calibration);
-	}
-	eeprom_update_word((uint16_t*)&ee_temp_calibration,(uint16_t)g_temp_calibration);
-	eeprom_update_byte(&ee_override_DIP_switches,g_override_DIP_switches);
-	eeprom_update_byte(&ee_enable_LEDs,g_enable_LEDs);
-	eeprom_update_byte(&ee_enable_start_timer,g_enable_start_timer);
-	eeprom_update_byte(&ee_enable_transmitter,g_enable_transmitter);
-
-	if(eeprom_read_byte((uint8_t*)&ee_stationID_text[0]) == 0xFF)   /* Never overwrite a valid ID */
-	{
-		for(i = 0; i < strlen(g_messages_text[STATION_ID]); i++)
-		{
-			eeprom_update_byte((uint8_t*)&ee_stationID_text[i],(uint8_t)g_messages_text[STATION_ID][i]);
-		}
-
-		eeprom_update_byte((uint8_t*)&ee_stationID_text[i],0);
-	}
-
-	for(i = 0; i < strlen(g_messages_text[PATTERN_TEXT]); i++)
-	{
-		eeprom_update_byte((uint8_t*)&ee_pattern_text[i],(uint8_t)g_messages_text[PATTERN_TEXT][i]);
-	}
-
-	eeprom_update_byte((uint8_t*)&ee_pattern_text[i],0);
-}
 
 /*
  * Set up registers for measuring processor temperature
@@ -1498,7 +1479,7 @@ void setUpTemp(void)
 
 	ADCSRA |= (1 << ADEN);  /* enable the ADC */
 
-	_delay_ms(200);         /* wait for voltages to become stable. */
+//	_delay_ms(200);         /* wait for voltages to become stable. */
 
 	ADCSRA |= (1 << ADSC);  /* Start the ADC */
 
@@ -1579,11 +1560,6 @@ void setupForFox()
 	g_time_to_ID = FALSE;
 	g_audio_tone_state = OFF;
 	sei();
-
-	while(initializeEEPROMVars())
-	{
-		;   /* Initialize variables stored in EEPROM */
-	}
 
 	g_LEDs_Timed_Out = !g_enable_LEDs;
 
@@ -1686,10 +1662,14 @@ void setupForFox()
 
 void softwareReset()
 {
+#if USE_WDT_RESET
 	cli();
-	wdt_enable(WDTO_15MS);
+	wdt_enable(WDTO_1S);
 	while(1)
 	{
 		;
 	}
+#else
+	lb_send_string((char*)"Press RESET button now.\n",FALSE);
+#endif // USE_WDT_RESET
 }

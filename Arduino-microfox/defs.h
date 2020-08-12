@@ -42,8 +42,10 @@
 	#include <avr/io.h>
 	#include <util/delay.h>
 	#include <avr/interrupt.h>
+	#define USE_WDT_RESET TRUE
 #else
 	#include "Arduino.h"
+	#define USE_WDT_RESET FALSE
 #endif // COMPILE_FOR_ATMELSTUDIO7
 
 #ifndef HIGH
@@ -70,7 +72,7 @@
 
 /******************************************************
  * Set the text that gets displayed to the user */
-#define SW_REVISION "0.22"
+#define SW_REVISION "0.23"
 
 //#define TRANQUILIZE_WATCHDOG
 
@@ -157,7 +159,7 @@ typedef enum
 
 /******************************************************
  * EEPROM definitions */
-#define EEPROM_INITIALIZED_FLAG 0xB7 /* Never set to 0xFF */
+#define EEPROM_INITIALIZED_FLAG 0xB9 /* Never set to 0xFF */
 #define EEPROM_UNINITIALIZED 0x00
 
 #define EEPROM_STATION_ID_DEFAULT "FOXBOX"
@@ -171,7 +173,6 @@ typedef enum
 #define EEPROM_ON_AIR_TIME_DEFAULT 60
 #define EEPROM_OFF_AIR_TIME_DEFAULT 240
 #define EEPROM_INTRA_CYCLE_DELAY_TIME_DEFAULT 0
-#define EEPROM_ID_TIME_INTERVAL_DEFAULT 60
 #define EEPROM_CLOCK_CALIBRATION_DEFAULT 15629
 #define EEPROM_TEMP_CALIBRATION_DEFAULT 147
 #define EEPROM_OVERRIDE_DIP_SW_DEFAULT 0
